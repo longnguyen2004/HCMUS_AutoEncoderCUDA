@@ -4,4 +4,6 @@ project(autoencoder CXX CUDA)
 add_executable(
   AUTOENCODER_EXEC
     src/hello.cpp
+    src/stbi.cpp
 )
+target_include_directories(AUTOENCODER_EXEC PRIVATE include)
