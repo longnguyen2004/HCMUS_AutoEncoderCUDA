@@ -25,9 +25,11 @@ void convolve_cpu(float* dst, float* src, float* kernel, int row, int col, int k
 void ConvolutionCpu::convolve(
   float *dst_r, float *dst_g, float *dst_b,
   float *src_r, float *src_g, float *src_b,
-  float *kernel, int row, int col, int kernel_size)
+  float *kernel_r, float *kernel_g, float *kernel_b,
+  int row, int col, int kernel_size
+)
 {
-  convolve_cpu(dst_r, src_r, kernel, row, col, kernel_size);
-  convolve_cpu(dst_g, src_g, kernel, row, col, kernel_size);
-  convolve_cpu(dst_b, src_b, kernel, row, col, kernel_size);
+  convolve_cpu(dst_r, src_r, kernel_r, row, col, kernel_size);
+  convolve_cpu(dst_g, src_g, kernel_g, row, col, kernel_size);
+  convolve_cpu(dst_b, src_b, kernel_b, row, col, kernel_size);
 }

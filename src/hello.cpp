@@ -23,7 +23,7 @@ int main(int argc, char const *argv[])
     convolver->convolve(
         out_r.data(), out_g.data(), out_b.data(),
         in_r.data(), in_g.data(), in_b.data(),
-        kernel.data(),
+        kernel.data(), kernel.data(), kernel.data(),
         y, x, 3
     );
     planar_to_packed(out.data(), out_r.data(), out_g.data(), out_b.data(), x * y);
