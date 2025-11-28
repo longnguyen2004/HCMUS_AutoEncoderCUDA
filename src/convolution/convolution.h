@@ -1,17 +1,21 @@
 #include <cstdint>
 
-using Image = float[32][32][3];
-
 class Convolution
 {
+public:
   virtual void convolve(
-    Image dst, Image src, float *kernel, int x, int y, int kernel_size
+    float* dst_r, float* dst_g, float* dst_b,
+    float* src_r, float* src_g, float* src_b,
+    float *kernel, int row, int col, int kernel_size
   ) = 0;
 };
 
 class ConvolutionCpu: public Convolution
 {
+public:
   void convolve(
-    Image dst, Image src, float *kernel, int x, int y, int kernel_size
+    float* dst_r, float* dst_g, float* dst_b,
+    float* src_r, float* src_g, float* src_b,
+    float *kernel, int row, int col, int kernel_size
   );
 };
