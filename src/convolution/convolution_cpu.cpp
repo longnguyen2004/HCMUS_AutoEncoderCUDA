@@ -1,7 +1,7 @@
 #include "convolution.h"
 #include <algorithm>
 
-void ConvolutionCpu::convolve(ImageOut dst, ImageIn src, float *kernel, int row, int col, int kernel_size)
+void ConvolutionCpu::convolve(Image dst, Image src, float *kernel, int row, int col, int kernel_size)
 {
   for (int i = 0; i < row; i++)
   {
