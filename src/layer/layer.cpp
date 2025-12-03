@@ -36,9 +36,9 @@ Tensor Tensor::to(DeviceType target_device) {
     size_t bytes = this->shape.size() * sizeof(float);
 
     if (this->device == CPU && target_device == GPU)
-        cudaMemcpy(new_tensor.buffer.get(), this->buffer.get(), bytes, cudaMemcpyHostToDevice);
+        CHECK(cudaMemcpy(new_tensor.buffer.get(), this->buffer.get(), bytes, cudaMemcpyHostToDevice));
     else if (this->device == GPU && target_device == CPU)
-        cudaMemcpy(new_tensor.buffer.get(), this->buffer.get(), bytes, cudaMemcpyDeviceToHost);
+        CHECK(cudaMemcpy(new_tensor.buffer.get(), this->buffer.get(), bytes, cudaMemcpyDeviceToHost));
 
     return new_tensor;
 }
@@ -65,8 +65,8 @@ void Tensor::from_image(Tensor& tensor, int index, const float* r, const float* 
         std::memcpy(&dst[offset_b], b, sizeof(float) * IMAGE_PIXELS);
     }
     else {
-        cudaMemcpy(&dst[offset_r], r, sizeof(float) * IMAGE_PIXELS, cudaMemcpyHostToDevice);
-        cudaMemcpy(&dst[offset_g], g, sizeof(float) * IMAGE_PIXELS, cudaMemcpyHostToDevice);
-        cudaMemcpy(&dst[offset_b], b, sizeof(float) * IMAGE_PIXELS, cudaMemcpyHostToDevice);     
+        CHECK(cudaMemcpy(&dst[offset_r], r, sizeof(float) * IMAGE_PIXELS, cudaMemcpyHostToDevice));
+        CHECK(cudaMemcpy(&dst[offset_g], g, sizeof(float) * IMAGE_PIXELS, cudaMemcpyHostToDevice));
+        CHECK(cudaMemcpy(&dst[offset_b], b, sizeof(float) * IMAGE_PIXELS, cudaMemcpyHostToDevice));     
     }
 }
