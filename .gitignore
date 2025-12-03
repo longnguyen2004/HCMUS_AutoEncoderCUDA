@@ -48,3 +48,4 @@
 *.dwo
 
 build
+.vscode

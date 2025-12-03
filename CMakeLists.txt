@@ -4,6 +4,7 @@ project(autoencoder CXX CUDA)
 add_executable(
   AUTOENCODER_EXEC
     src/convolution/convolution_cpu.cpp
+    src/convolution/convolution_gpu.cu
     src/hello.cpp
     src/stbi.cpp
     src/stbi_write.cpp
