@@ -51,7 +51,6 @@ class Layer {
     virtual ~Layer() = default;
     virtual Tensor forward(Tensor& input) = 0;
     virtual Tensor backward(Tensor& grad_output) = 0;
-    virtual void step(float lr) = 0;
 };
 
 class Conv2D : public Layer {
@@ -60,8 +59,15 @@ class Conv2D : public Layer {
     int c_in, c_out;
   public:
     Conv2D(int in_channels, int out_channels);
+    Tensor forward(Tensor& input) override;
+    Tensor backward(Tensor& grad_output) override;
+    void step(float lr);
 };
 
-class Relu : public Layer {};
+class Relu : public Layer {
+  public:
+    Tensor forward(Tensor& input) override;
+    Tensor backward(Tensor& grad_output) override;
+};
 class MaxPool2D : public Layer {};
 class UpSample2D : public Layer {};

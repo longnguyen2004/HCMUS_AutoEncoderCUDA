@@ -48,7 +48,7 @@ void ConvolutionGpu::convolve(
     CHECK(cudaMalloc((void**)&cuda_src, bytes));
     CHECK(cudaMalloc((void**)&cuda_kernel, sizeof(float) * KERNEL_SIZE));
 
-    dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 blockSize(BLOCK_SIZE_2D, BLOCK_SIZE_2D);
     dim3 gridSize(
         (col + blockSize.x - 1) / blockSize.x,
         (row + blockSize.y - 1) / blockSize.y
