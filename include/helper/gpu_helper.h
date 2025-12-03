@@ -8,6 +8,16 @@ void inline CHECK(const cudaError_t error) {
     exit(EXIT_FAILURE); 
 }
 
+
+inline double checkDiff(const float* cpu, const float* gpu, int n) {
+    double sum_error = 0.0;
+    
+    for (int i = 0; i < n; i++)
+        sum_error += std::abs(cpu[i] - gpu[i]);
+    
+    return sum_error / n;
+}
+
 class GPUTimer {
     cudaEvent_t start;
     cudaEvent_t stop;
