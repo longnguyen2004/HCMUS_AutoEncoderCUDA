@@ -3,6 +3,7 @@ project(autoencoder CXX CUDA)
 
 add_executable(
   AUTOENCODER_EXEC
+    src/layer/layer.cpp
     src/convolution/convolution_cpu.cpp
     src/convolution/convolution_gpu.cu
     src/hello.cpp
