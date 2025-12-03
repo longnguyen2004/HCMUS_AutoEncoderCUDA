@@ -1,20 +1,20 @@
 #include "convolution.h"
 #include <algorithm>
 
-void convolve_cpu(float* dst, float* src, float* kernel, int row, int col, int kernel_size)
+void convolve_cpu(float* dst, float* src, float* kernel, int row, int col)
 {
   for (int i = 0; i < row; i++)
   {
     for (int j = 0; j < col; j++)
     {
       float val = 0;
-      for (int k = 0; k < kernel_size; ++k)
+      for (int k = 0; k < KERNEL_WIDTH; ++k)
       {
-        for (int l = 0; l < kernel_size; ++l)
+        for (int l = 0; l < KERNEL_WIDTH; ++l)
         {
-          int i_mapped = std::clamp(i + k - kernel_size / 2, 0, row - 1);
-          int j_mapped = std::clamp(j + l - kernel_size / 2, 0, col - 1);
-          val += src[i_mapped * col + j_mapped] * kernel[k * kernel_size + l];
+          int i_mapped = std::clamp(i + k - KERNEL_RADIUS, 0, row - 1);
+          int j_mapped = std::clamp(j + l - KERNEL_RADIUS, 0, col - 1);
+          val += src[i_mapped * col + j_mapped] * kernel[k * KERNEL_WIDTH + l];
         }
       }
       dst[i * col + j] = val;
@@ -23,13 +23,8 @@ void convolve_cpu(float* dst, float* src, float* kernel, int row, int col, int k
 }
 
 void ConvolutionCpu::convolve(
-  float *dst_r, float *dst_g, float *dst_b,
-  float *src_r, float *src_g, float *src_b,
-  float *kernel_r, float *kernel_g, float *kernel_b,
-  int row, int col, int kernel_size
+  float *dst, float * src, float* kernel, int row, int col
 )
 {
-  convolve_cpu(dst_r, src_r, kernel_r, row, col, kernel_size);
-  convolve_cpu(dst_g, src_g, kernel_g, row, col, kernel_size);
-  convolve_cpu(dst_b, src_b, kernel_b, row, col, kernel_size);
+  convolve_cpu(dst, src, kernel, row, col);
 }
