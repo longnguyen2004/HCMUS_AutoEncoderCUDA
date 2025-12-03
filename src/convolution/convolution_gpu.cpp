@@ -31,8 +31,7 @@ void ConvolutionGpu::convolve(
 
     dim3 gridSize(
         (col + blockSize.x - 1) / blockSize.x,
-        (row + blockSize.y - 1) / blockSize.y,
-        1
+        (row + blockSize.y - 1) / blockSize.y
     );
 
     //r

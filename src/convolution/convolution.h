@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cuda_runtime.h>
 
 __host__ __device__ int inline mapIndex(int index, int bound) {
   if (index < 0 || index >= bound) return 0;
