@@ -16,7 +16,7 @@ add_executable(
     src/core/tensor.cu
     
     # Layers
-    src/layer/activation/relu.cu
+    src/layer/activation/gpu/relu.cu
     src/layer/conv/cpu/conv2d.cpp
     src/layer/conv/gpu/conv2d.cu
     src/layer/pooling/maxpool2d.cu
