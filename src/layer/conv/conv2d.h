@@ -21,7 +21,7 @@ private:
 class Conv2DGPU : public Layer {
 public:
   Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters);
-  ~Conv2DGPU() = default;
+  ~Conv2DGPU();
   void forward();
   void backward(float learning_rate);
   const float* output() const;
