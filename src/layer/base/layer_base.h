@@ -1,5 +1,4 @@
 #pragma once
-#include "core/tensor.h"
 #include <tuple>
 
 enum DeviceType { CPU, GPU };
