@@ -17,7 +17,7 @@ add_executable(
     
     # Layers
     src/layer/activation/relu.cu
-    src/layer/conv/conv2d.cu
+    src/layer/conv/gpu/conv2d.cu
     src/layer/pooling/maxpool2d.cu
     src/layer/upsampling/upsample2d.cu
     
