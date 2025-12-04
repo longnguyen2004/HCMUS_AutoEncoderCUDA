@@ -1,17 +1,12 @@
-#include "convolution.h"
+#include "convolution_cpu.h"
 #include <algorithm>
 
-void convolve_cpu(float* dst, float* src, float* kernel, int row, int col)
-{
-  for (int i = 0; i < row; i++)
-  {
-    for (int j = 0; j < col; j++)
-    {
+void convolve_cpu(float* dst, float* src, float* kernel, int row, int col) {
+  for (int i = 0; i < row; i++) {
+    for (int j = 0; j < col; j++) {
       float val = 0;
-      for (int k = 0; k < KERNEL_WIDTH; ++k)
-      {
-        for (int l = 0; l < KERNEL_WIDTH; ++l)
-        {
+      for (int k = 0; k < KERNEL_WIDTH; ++k) {
+        for (int l = 0; l < KERNEL_WIDTH; ++l) {
           int i_mapped = i + k - KERNEL_RADIUS;
           int j_mapped = j + l - KERNEL_RADIUS;
           
@@ -26,8 +21,6 @@ void convolve_cpu(float* dst, float* src, float* kernel, int row, int col)
 }
 
 void ConvolutionCpu::convolve(
-  float *dst, float * src, float* kernel, int row, int col
-)
-{
+  float *dst, float *src, float *kernel, int row, int col) {
   convolve_cpu(dst, src, kernel, row, col);
 }

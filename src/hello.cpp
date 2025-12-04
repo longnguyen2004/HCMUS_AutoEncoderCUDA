@@ -1,4 +1,4 @@
-#include "convolution/convolution.h"
+#include "core/tensor.h"
 #include "planar/planar.h"
 #include "helper/gpu_helper.h"
 #include <stb_image.h>
@@ -8,6 +8,8 @@
 #include <vector>
 #include <chrono>
 #include <iostream>
+#include <convolution/cpu/convolution_cpu.h>
+#include <convolution/gpu/convolution_gpu.h>
 
 int main(int argc, char const *argv[])
 {
@@ -41,6 +43,26 @@ int main(int argc, char const *argv[])
     std::unique_ptr<Convolution> convolver_cpu(new ConvolutionCpu);
     auto start_cpu = std::chrono::high_resolution_clock::now();
     
+    Tensor tensor({100, 3, y, x}, GPU);
+    std::cout << "Tensor shape: n=" << tensor.shape.n << ", c=" << tensor.shape.c 
+              << ", h=" << tensor.shape.h << ", w=" << tensor.shape.w << std::endl;
+    std::cout << "Tensor size: " << tensor.shape.size() << " floats" << std::endl;
+    for (int i = 0; i < 100; i++)
+        Tensor::from_image(tensor, i, in_r.data(), in_g.data(), in_b.data(), x * y);
+    
+    tensor = tensor.to(CPU);
+    std::cout << "Tensor moved to CPU." << std::endl;
+    for (int row = 0; row < y; row++) {
+        for (int col = 0; col < x; col++) {
+            if (tensor(99, 0, row, col) != in_r[row * x + col] ||
+                tensor(99, 1, row, col) != in_g[row * x + col] ||
+                tensor(99, 2, row, col) != in_b[row * x + col]) {
+                std::cerr << "Tensor from_image error at (" << row << ", " << col << ")" << std::endl;
+                return 1;
+            }
+        }
+    }
+
     convolver_cpu->convolve(out_r.data(), in_r.data(), kernel.data(), y, x);
     convolver_cpu->convolve(out_g.data(), in_g.data(), kernel.data(), y, x);
     convolver_cpu->convolve(out_b.data(), in_b.data(), kernel.data(), y, x);

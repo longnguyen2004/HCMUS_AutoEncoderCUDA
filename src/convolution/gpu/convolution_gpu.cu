@@ -1,8 +1,7 @@
-#include "convolution.h"
+#include "convolution_gpu.h"
 #include "helper/gpu_helper.h"
 
-__global__ void convolve_gpu(float* dst, float* src, float* kernel, int row, int col)  
-{
+__global__ void convolve_gpu_kernel(float* dst, float* src, float* kernel, int row, int col) {
     extern __shared__ float s_src[];
 
     int tx = threadIdx.x; 
@@ -14,6 +13,7 @@ __global__ void convolve_gpu(float* dst, float* src, float* kernel, int row, int
     
     int tileWidth = blockDim.x + KERNEL_RADIUS * 2;
     int tileHeight = blockDim.y + KERNEL_RADIUS * 2;
+    
     for (int j = ty; j < tileHeight; j += blockDim.y) {
         for (int i = tx; i < tileWidth; i += blockDim.x) {
             int gy = blockStart_y - KERNEL_RADIUS + j;
@@ -28,6 +28,7 @@ __global__ void convolve_gpu(float* dst, float* src, float* kernel, int row, int
     __syncthreads();
 
     if (x >= col || y >= row) return;
+    
     float pixel = 0.0f;
     for (int yf = 0; yf < KERNEL_WIDTH; ++yf) {
         for (int xf = 0; xf < KERNEL_WIDTH; ++xf) {
@@ -40,8 +41,7 @@ __global__ void convolve_gpu(float* dst, float* src, float* kernel, int row, int
 }
 
 void ConvolutionGpu::convolve(
-  float *dst, float * src, float* kernel, int row, int col)
-{
+  float *dst, float *src, float *kernel, int row, int col) {
     float *cuda_dst, *cuda_src, *cuda_kernel;
     size_t bytes = sizeof(float) * row * col;
     CHECK(cudaMalloc((void**)&cuda_dst, bytes));
@@ -57,7 +57,7 @@ void ConvolutionGpu::convolve(
     size_t shared_memory = sizeof(float) * (2 * KERNEL_RADIUS + blockSize.x) * (2 * KERNEL_RADIUS + blockSize.y);
     CHECK(cudaMemcpy(cuda_src, src, bytes, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(cuda_kernel, kernel, sizeof(float) * KERNEL_SIZE, cudaMemcpyHostToDevice));
-    convolve_gpu<<<gridSize, blockSize, shared_memory>>>(cuda_dst, cuda_src, cuda_kernel, row, col);
+    convolve_gpu_kernel<<<gridSize, blockSize, shared_memory>>>(cuda_dst, cuda_src, cuda_kernel, row, col);
 
     CHECK(cudaGetLastError());
     CHECK(cudaMemcpy(dst, cuda_dst, bytes, cudaMemcpyDeviceToHost));
