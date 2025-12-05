@@ -12,6 +12,7 @@ private:
 
 public:
   MaxPool2DCPU(std::shared_ptr<Layer> prev, int stride);
+  ~MaxPool2DCPU() = default;
   void forward();
   void backward(float learning_rate, const float *grad_output);
   const float *output() const;
