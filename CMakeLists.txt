@@ -12,9 +12,6 @@ FetchContent_MakeAvailable(mdspan)
 
 add_executable(
   AUTOENCODER_EXEC
-    # Core
-    src/core/tensor.cu
-    
     # Layers
     src/layer/activation/cpu/relu.cpp
     src/layer/activation/gpu/relu.cu
@@ -22,8 +19,9 @@ add_executable(
     src/layer/conv/gpu/conv2d.cu
     src/layer/pooling/gpu/maxpool2d.cu
     src/layer/pooling/cpu/maxpool2d.cpp
-    src/layer/upsampling/upsample2d.cu
-    
+    src/layer/upsampling/cpu/upsample2d.cpp
+    src/layer/upsampling/gpu/upsample2d.cu
+
     # Utils
     src/main.cpp
     src/stbi.cpp

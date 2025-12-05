@@ -8,3 +8,4 @@ constexpr int IMAGE_DIMENSION = 32;
 constexpr int IMAGE_PIXELS = IMAGE_DIMENSION * IMAGE_DIMENSION;
 constexpr size_t IMAGE_BYTE_SIZE = sizeof(float) * 3 * IMAGE_PIXELS;
 constexpr int MAXPOOL2D_STRIDE = 2;
+constexpr int SCALE_FACTOR = 2;

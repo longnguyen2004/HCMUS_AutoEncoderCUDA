@@ -1,22 +1,15 @@
 #include "../maxpool2d.h"
-#include <helper/gpu_helper.h>
 #include <mdspan/mdspan.hpp>
 #include <constants.h>
 
-MaxPool2DGPU::MaxPool2DGPU(std::shared_ptr<Layer> prev) : m_prev(prev)
+MaxPool2DGPU::MaxPool2DGPU(std::shared_ptr<Layer> prev)
 {
+    m_prev = prev;
     auto [x, y, z] = this->dimension();
+    auto [in_x, in_y, in_z] = m_prev->dimension();
     CHECK(cudaMalloc(reinterpret_cast<void**>(&m_output), x * y * z * sizeof(float)));
-}
-
-MaxPool2DGPU::~MaxPool2DGPU() 
-{
-    CHECK(cudaFree(m_output));
-}
-
-const float* MaxPool2DGPU::output() const
-{
-    return m_output;
+    CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), in_x * in_y * in_z * sizeof(float)));
+    CHECK(cudaMemset(grad_input, 0, in_x * in_y * in_z * sizeof(float)));
 }
 
 std::tuple<int, int, int> MaxPool2DGPU::dimension() const
@@ -127,7 +120,6 @@ __global__ void maxpool2d_backward_kernel(const float* grad_output, float* grad_
 void MaxPool2DGPU::backward(float learning_rate, const float* grad_output) {
     auto [in_x, in_y, in_z] = m_prev->dimension();
     auto [out_x, out_y, out_z] = dimension();
-    float* grad_input;
 
     size_t input_size = in_x * in_y;
     size_t output_size = out_x * out_y;
@@ -139,9 +131,6 @@ void MaxPool2DGPU::backward(float learning_rate, const float* grad_output) {
         in_z
     );
 
-    CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), in_x * in_y * in_z * sizeof(float)));
-    CHECK(cudaMemset(grad_input, 0, in_x * in_y * in_z * sizeof(float)));
-
     maxpool2d_backward_kernel<MAXPOOL2D_STRIDE><<<gridSize, blockSize>>>(
         grad_output,
         grad_input,
@@ -152,5 +141,4 @@ void MaxPool2DGPU::backward(float learning_rate, const float* grad_output) {
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());    
     m_prev->backward(learning_rate, grad_input);
-    CHECK(cudaFree(grad_input));
 }

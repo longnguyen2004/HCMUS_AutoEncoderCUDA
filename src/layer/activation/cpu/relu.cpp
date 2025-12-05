@@ -1,13 +1,12 @@
 #include "../relu.h"
 #include <cmath>
 
-ReluCPU::ReluCPU(std::shared_ptr<Layer> prev) : m_prev(prev) {
+ReluCPU::ReluCPU(std::shared_ptr<Layer> prev)
+{ 
+    m_prev = prev;
     auto [x, y, z] = this->dimension();
     m_output.resize(x * y * z);
-}
-
-const float* ReluCPU::output() const {
-    return m_output.data();
+    grad_input.resize(x * y * z);
 }
 
 std::tuple<int, int, int> ReluCPU::dimension() const {
@@ -24,7 +23,6 @@ void ReluCPU::forward() {
 
 void ReluCPU::backward(float learning_rate, const float* grad_output) {
     auto [x, y, z] = this->dimension();
-    std::vector<float> grad_input(x * y * z);
     auto input = m_prev->output();
     for (int i = 0; i < x * y * z; ++i)
         grad_input[i] = input[i] > 0 ? grad_output[i] : 0.0f;

@@ -46,25 +46,20 @@ __global__ void convolve_gpu_kernel(float *dst, const float *src, const float *k
     dst[col * y + x] += pixel;
 }
 
-Conv2DGPU::Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) : m_prev(prev), m_kernel_size(kernel_size), m_filters(filters)
+Conv2DGPU::Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) : m_kernel_size(kernel_size), m_filters(filters)
 {
+    m_prev = prev;
     auto [x, y, z] = this->dimension();
+    auto [in_x, in_y, in_z] = m_prev->dimension();
     cudaMalloc(reinterpret_cast<void **>(&m_output), x * y * z * sizeof(float));
-}
-Conv2DGPU::~Conv2DGPU()
-{
-    cudaFree(m_output);
+    cudaMalloc(reinterpret_cast<void **>(&grad_input), in_x * in_y * in_z * sizeof(float));
 }
 std::tuple<int, int, int> Conv2DGPU::dimension() const
 {
     auto [prev_x, prev_y, _] = m_prev->dimension();
-    return {prev_x, prev_y, m_kernel_size};
+    return {prev_x, prev_y, m_filters};
 }
-const float *Conv2DGPU::output() const
-{
-    return m_output;
-}
-size_t Conv2DGPU::paramsCount() const
+size_t Conv2DGPU::paramCount() const
 {
     auto [prev_x, prev_y, prev_z] = m_prev->dimension();
     return m_kernel_size * m_kernel_size * prev_z * m_filters + m_filters;

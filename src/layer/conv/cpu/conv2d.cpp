@@ -23,21 +23,19 @@ void convolve_cpu(float* dst, const float* src, const float* kernel, int col, in
 }
 
 
-Conv2DCPU::Conv2DCPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) : m_prev(prev), m_kernel_size(kernel_size), m_filters(filters)
+Conv2DCPU::Conv2DCPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) : m_kernel_size(kernel_size), m_filters(filters)
 {
+    m_prev = prev;
     auto [x, y, z] = this->dimension();
     m_output.resize(x * y * z);
+    grad_input.resize(x * y * z);
 }
 std::tuple<int, int, int> Conv2DCPU::dimension() const
 {
     auto [prev_x, prev_y, _] = m_prev->dimension();
     return {prev_x, prev_y, m_filters};
 }
-const float *Conv2DCPU::output() const
-{
-    return m_output.data();
-}
-size_t Conv2DCPU::paramsCount() const
+size_t Conv2DCPU::paramCount() const
 {
     auto [prev_x, prev_y, prev_z] = m_prev->dimension();
     return m_kernel_size * m_kernel_size * prev_z * m_filters + m_filters;

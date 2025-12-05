@@ -1,10 +1,15 @@
 #pragma once
 #include <tuple>
 #include <cstddef>
+#include <memory>
+#include <vector>
+#include <helper/gpu_helper.h>
 
 enum DeviceType { CPU, GPU };
 
 class Layer {
+protected:
+  std::shared_ptr<Layer> m_prev;
 public: 
   virtual ~Layer() = default;
   virtual void forward() = 0;
@@ -20,4 +25,33 @@ public:
   };
 
   virtual DeviceType deviceType() const = 0;
+};
+
+class LayerCPU : public Layer{
+protected:
+  std::vector<float> m_output;
+  std::vector<float> grad_input;
+public: 
+  const float* output() const override
+  {
+    return m_output.data();
+  }
+  DeviceType deviceType() const override {return DeviceType::CPU;};
+};
+
+class LayerGPU : public Layer{
+protected:
+  float* m_output;
+  float* grad_input;
+public: 
+  virtual ~LayerGPU() 
+  {
+    CHECK(cudaFree(m_output));
+    CHECK(cudaFree(grad_input));
+  }
+  const float* output() const override
+  {
+    return m_output;
+  }
+  DeviceType deviceType() const override {return DeviceType::GPU;};
 };

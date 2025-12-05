@@ -1,11 +1,18 @@
 #pragma once
 #include <layer/base/layer_base.h>
 
-class UpSample2D : public Layer {
-  private:
-    int scale_factor;
-  public:
-    UpSample2D(int scale);
-    Tensor forward(Tensor& input) override;
-    Tensor backward(Tensor& grad_output) override;
+class UpSample2DCPU : public LayerCPU {
+public:
+  UpSample2DCPU(std::shared_ptr<Layer> prev);
+  void forward();
+  void backward(float learning_rate, const float* grad_output);
+  std::tuple<int, int, int> dimension() const;
+};
+
+class UpSample2DGPU : public LayerGPU {
+public:
+  UpSample2DGPU(std::shared_ptr<Layer> prev);
+  void forward();
+  void backward(float learning_rate, const float* grad_output);
+  std::tuple<int, int, int> dimension() const;
 };

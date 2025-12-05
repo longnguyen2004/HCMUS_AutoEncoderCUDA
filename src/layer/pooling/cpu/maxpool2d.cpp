@@ -3,9 +3,12 @@
 #include <algorithm>
 #include <constants.h>
 
-MaxPool2DCPU::MaxPool2DCPU(std::shared_ptr<Layer>prev): m_prev(prev) {
+MaxPool2DCPU::MaxPool2DCPU(std::shared_ptr<Layer>prev) {
+    m_prev = prev;
     auto [x, y, z] = dimension();
-    this->m_output.resize(x * y * z);
+    auto [x_in, y_in, z_in] = m_prev->dimension();
+    m_output.resize(x * y * z);
+    grad_input.resize(x_in * y_in * z_in);
 }
 
 std::tuple<int, int, int> MaxPool2DCPU::dimension() const
@@ -62,8 +65,4 @@ void MaxPool2DCPU::backward(float learning_rate, const float* grad_output) {
         }
     }
     this->m_prev->backward(learning_rate, grad_input.data());
-}
-
-const float* MaxPool2DCPU::output() const {
-    return m_output.data();
 }

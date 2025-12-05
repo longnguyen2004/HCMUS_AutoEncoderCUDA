@@ -16,20 +16,13 @@ __global__ void relu_backward_kernel(const float* grad_output, const float* inpu
     grad_input[idx] = grad_output[idx] * derivative;
 }
 
-ReluGPU::ReluGPU(std::shared_ptr<Layer> prev): m_prev(prev)
+ReluGPU::ReluGPU(std::shared_ptr<Layer> prev) 
 {
+    m_prev = prev;
     auto [x, y, z] = m_prev->dimension();
-    CHECK(cudaMalloc(reinterpret_cast<void**>(&m_output), x * y * z * sizeof(float)));
-}
-
-ReluGPU::~ReluGPU()
-{
-    CHECK(cudaFree(m_output));
-}
-
-const float* ReluGPU::output() const
-{
-    return m_output;
+    size_t bytes = x * y * z * sizeof(float);
+    CHECK(cudaMalloc(reinterpret_cast<void**>(&m_output), bytes));
+    CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), bytes));
 }
 
 std::tuple<int, int, int> ReluGPU::dimension() const
@@ -52,14 +45,12 @@ void ReluGPU::forward()
 void ReluGPU::backward(float learning_rate, const float* grad_output) {
     auto [x, y, z] = m_prev->dimension();
     int size = x * y * z;
-    float* grad_input;
-    CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), size * sizeof(float)));
+
     dim3 blockSize(BLOCK_SIZE_1D);
     dim3 gridSize((size + blockSize.x - 1) / blockSize.x);
     relu_backward_kernel<<<gridSize, blockSize>>>(grad_output, m_prev->output(), grad_input, size);
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());    
     m_prev->backward(learning_rate, grad_input);
-    CHECK(cudaFree(grad_input));
 }
 
