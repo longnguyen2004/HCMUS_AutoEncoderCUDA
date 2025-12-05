@@ -6,6 +6,10 @@ ReluCPU::ReluCPU(std::shared_ptr<Layer> prev) : m_prev(prev) {
     m_output.resize(x * y * z);
 }
 
+const float* ReluCPU::output() const {
+    return m_output.data();
+}
+
 std::tuple<int, int, int> ReluCPU::dimension() const {
     return m_prev->dimension();
 }
