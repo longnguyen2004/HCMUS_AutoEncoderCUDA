@@ -24,12 +24,8 @@ add_executable(
     src/layer/pooling/cpu/maxpool2d.cpp
     src/layer/upsampling/upsample2d.cu
     
-    # Convolution
-    src/convolution/cpu/convolution_cpu.cpp
-    src/convolution/gpu/convolution_gpu.cu
-    
     # Utils
-    src/hello.cpp
+    src/main.cpp
     src/stbi.cpp
     src/stbi_write.cpp
 )

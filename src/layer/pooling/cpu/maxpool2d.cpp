@@ -62,3 +62,7 @@ void MaxPool2DCPU::backward(float learning_rate, const float* grad_output) {
     }
     this->m_prev->backward(learning_rate, grad_input.data());
 }
+
+const float* MaxPool2DCPU::output() const {
+    return m_output.data();
+}

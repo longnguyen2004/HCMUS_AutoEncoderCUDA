@@ -15,6 +15,11 @@ MaxPool2DGPU::~MaxPool2DGPU()
     cudaFree(m_output);
 }
 
+const float* MaxPool2DGPU::output() const
+{
+    return m_output;
+}
+
 std::tuple<int, int, int> MaxPool2DGPU::dimension() const
 {
     auto [x, y, z] = m_prev->dimension();
