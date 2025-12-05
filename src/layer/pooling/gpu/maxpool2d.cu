@@ -9,7 +9,6 @@ MaxPool2DGPU::MaxPool2DGPU(std::shared_ptr<Layer> prev)
     auto [in_x, in_y, in_z] = m_prev->dimension();
     CHECK(cudaMalloc(reinterpret_cast<void**>(&m_output), x * y * z * sizeof(float)));
     CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), in_x * in_y * in_z * sizeof(float)));
-    CHECK(cudaMemset(grad_input, 0, in_x * in_y * in_z * sizeof(float)));
 }
 
 std::tuple<int, int, int> MaxPool2DGPU::dimension() const
@@ -56,8 +55,8 @@ __global__ void maxpool2d_forward_kernel(float* output, const float* input, size
 
 void MaxPool2DGPU::forward() {
     m_prev->forward();
-    auto [in_x, in_y, in_z] = m_prev->dimension();
-    auto [out_x, out_y, out_z] = dimension();
+    auto [in_x, in_y, z] = m_prev->dimension();
+    auto [out_x, out_y, _] = dimension();
     
     int input_size = in_x * in_y;
     int output_size = out_x * out_y;
@@ -66,7 +65,7 @@ void MaxPool2DGPU::forward() {
     dim3 gridSize(
             (out_x + blockSize.x - 1) / blockSize.x,
             (out_y + blockSize.y - 1) / blockSize.y,
-            in_z
+            z
         );
 
     maxpool2d_forward_kernel<MAXPOOL2D_STRIDE><<<gridSize, blockSize>>>(
@@ -118,17 +117,19 @@ __global__ void maxpool2d_backward_kernel(const float* grad_output, float* grad_
 }
 
 void MaxPool2DGPU::backward(float learning_rate, const float* grad_output) {
-    auto [in_x, in_y, in_z] = m_prev->dimension();
-    auto [out_x, out_y, out_z] = dimension();
+    auto [in_x, in_y, z] = m_prev->dimension();
+    auto [out_x, out_y, _] = dimension();
 
-    size_t input_size = in_x * in_y;
-    size_t output_size = out_x * out_y;
+    int input_size = in_x * in_y;
+    int output_size = out_x * out_y;
+
+    CHECK(cudaMemset(grad_input, 0, in_x * in_y * z * sizeof(float)));
 
     dim3 blockSize(BLOCK_SIZE_2D, BLOCK_SIZE_2D);
     dim3 gridSize(
         (out_x + blockSize.x - 1 ) / blockSize.x,
         (out_y + blockSize.y - 1) / blockSize.y,
-        in_z
+        z
     );
 
     maxpool2d_backward_kernel<MAXPOOL2D_STRIDE><<<gridSize, blockSize>>>(
