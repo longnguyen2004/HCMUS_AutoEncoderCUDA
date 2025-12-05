@@ -1,5 +1,5 @@
 #pragma once
-#include "layer/base/layer_base.h"
+#include <layer/base/layer_base.h>
 #include <memory>
 #include <vector>
 
@@ -8,7 +8,7 @@ public:
   Conv2DCPU(std::shared_ptr<Layer> prev, int kernel_size, int filters);
   ~Conv2DCPU() = default;
   void forward();
-  void backward(float learning_rate);
+  void backward(float learning_rate, const float* grad_output);
   const float* output() const;
   std::tuple<int, int, int> dimension() const;
   size_t paramsCount() const;
@@ -27,7 +27,7 @@ public:
   Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters);
   ~Conv2DGPU();
   void forward();
-  void backward(float learning_rate);
+  void backward(float learning_rate, const float* grad_output);
   const float* output() const;
   std::tuple<int, int, int> dimension() const;
   size_t paramsCount() const;

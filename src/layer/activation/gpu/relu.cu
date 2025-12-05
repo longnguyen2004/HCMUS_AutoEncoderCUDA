@@ -1,4 +1,6 @@
 #include "../relu.h"
+#include <constants.h>
+#include <helper/gpu_helper.h>
 
 __global__ void relu_forward_kernel(float* out, const float* in, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -35,19 +37,29 @@ std::tuple<int, int, int> ReluGPU::dimension() const
     return m_prev->dimension();
 }
 
-size_t ReluGPU::paramCount() const
-{
-    return 0;
-}
-
 void ReluGPU::forward()
 {
     m_prev->forward();
     auto [x, y, z] = m_prev->dimension();
     auto size = x * y * z;
-    dim3 blockSize(32);
+    dim3 blockSize(BLOCK_SIZE_1D);
     dim3 gridSize((size + blockSize.x - 1) / blockSize.x);
     relu_forward_kernel<<<gridSize, blockSize>>>(m_output, m_prev->output(), size);
-    // TODO: sync
+    CHECK(cudaDeviceSynchronize());
+    CHECK(cudaGetLastError());
+}
+
+void ReluGPU::backward(float learning_rate, const float* grad_output) {
+    // TODO: calculate grad_input
+    auto [x, y, z] = m_prev->dimension();
+    size_t size = x * y * z;
+    float* grad_input;
+    CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), size * sizeof(float)));
+    dim3 blockSize(BLOCK_SIZE_1D);
+    dim3 gridSize((size + blockSize.x - 1) / blockSize.x);
+    relu_backward_kernel<<<gridSize, blockSize>>>(grad_output, m_prev->output(), grad_input, size);
+    CHECK(cudaDeviceSynchronize());
+    CHECK(cudaGetLastError());    
+    m_prev->backward(learning_rate, grad_input);
 }
 

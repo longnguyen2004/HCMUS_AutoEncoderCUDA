@@ -7,15 +7,23 @@ public:
   ReluGPU(std::shared_ptr<Layer> prev);
   ~ReluGPU();
   void forward();
-  void backward(float learning_rate);
+  void backward(float learning_rate, const float* grad_output);
   const float* output() const;
   std::tuple<int, int, int> dimension() const;
-  size_t paramCount() const;
-  void setParams(float* params) {};
 
   DeviceType deviceType() const { return DeviceType::GPU; }
 
 private:
   std::shared_ptr<Layer> m_prev;
   float* m_output;
+};
+
+class ReluCPU : public Layer {
+public:
+  ReluCPU(std::shared_ptr<Layer> prev);
+  ~ReluCPU();
+  void forward();
+  void backward(float learning_rate, const float* grad_output);
+  const float* output() const;
+  std::tuple<int, int, int> dimension() const;
 };

@@ -16,10 +16,12 @@ add_executable(
     src/core/tensor.cu
     
     # Layers
+    src/layer/activation/cpu/relu.cpp
     src/layer/activation/gpu/relu.cu
     src/layer/conv/cpu/conv2d.cpp
     src/layer/conv/gpu/conv2d.cu
-    src/layer/pooling/maxpool2d.cu
+    src/layer/pooling/gpu/maxpool2d.cu
+    src/layer/pooling/cpu/maxpool2d.cpp
     src/layer/upsampling/upsample2d.cu
     
     # Convolution
