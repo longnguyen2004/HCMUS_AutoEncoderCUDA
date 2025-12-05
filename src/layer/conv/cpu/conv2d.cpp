@@ -31,7 +31,7 @@ Conv2DCPU::Conv2DCPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) 
 std::tuple<int, int, int> Conv2DCPU::dimension() const
 {
     auto [prev_x, prev_y, _] = m_prev->dimension();
-    return {prev_x, prev_y, m_kernel_size};
+    return {prev_x, prev_y, m_filters};
 }
 const float *Conv2DCPU::output() const
 {

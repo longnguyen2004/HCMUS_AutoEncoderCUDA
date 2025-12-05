@@ -18,6 +18,7 @@ std::tuple<int, int, int> MaxPool2DCPU::dimension() const
 }
 
 void MaxPool2DCPU::forward() {
+    m_prev->forward();
     std::fill(m_output.begin(), m_output.end(), -INFINITY);
     auto [in_x, in_y, in_z] = m_prev->dimension();
     auto [out_x, out_y, out_z] = dimension();

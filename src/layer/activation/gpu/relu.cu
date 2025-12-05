@@ -3,13 +3,13 @@
 #include <helper/gpu_helper.h>
 
 __global__ void relu_forward_kernel(float* out, const float* in, size_t size) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size)
         out[idx] = fmaxf(0.0f, in[idx]);
 }
 
 __global__ void relu_backward_kernel(const float* grad_output, const float* input, float* grad_input, size_t size) {
-    size_t idx = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (idx >= size) return;
     float derivative = (input[idx] > 0.0f) ? 1.0f : 0.0f;
@@ -19,12 +19,12 @@ __global__ void relu_backward_kernel(const float* grad_output, const float* inpu
 ReluGPU::ReluGPU(std::shared_ptr<Layer> prev): m_prev(prev)
 {
     auto [x, y, z] = m_prev->dimension();
-    cudaMalloc(reinterpret_cast<void**>(&m_output), x * y * z * sizeof(float));
+    CHECK(cudaMalloc(reinterpret_cast<void**>(&m_output), x * y * z * sizeof(float)));
 }
 
 ReluGPU::~ReluGPU()
 {
-    cudaFree(m_output);
+    CHECK(cudaFree(m_output));
 }
 
 const float* ReluGPU::output() const
@@ -50,7 +50,6 @@ void ReluGPU::forward()
 }
 
 void ReluGPU::backward(float learning_rate, const float* grad_output) {
-    // TODO: calculate grad_input
     auto [x, y, z] = m_prev->dimension();
     size_t size = x * y * z;
     float* grad_input;
@@ -61,5 +60,6 @@ void ReluGPU::backward(float learning_rate, const float* grad_output) {
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());    
     m_prev->backward(learning_rate, grad_input);
+    CHECK(cudaFree(grad_input));
 }
 
