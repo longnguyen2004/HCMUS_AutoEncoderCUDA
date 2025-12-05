@@ -3,8 +3,7 @@
 #include <mdspan/mdspan.hpp>
 #include <constants.h>
 
-MaxPool2DGPU::MaxPool2DGPU(std::shared_ptr<Layer> prev, int stride)
-    : m_prev(prev), m_stride(stride) 
+MaxPool2DGPU::MaxPool2DGPU(std::shared_ptr<Layer> prev) : m_prev(prev)
 {
     auto [x, y, z] = this->dimension();
     CHECK(cudaMalloc(reinterpret_cast<void**>(&m_output), x * y * z * sizeof(float)));
@@ -12,7 +11,7 @@ MaxPool2DGPU::MaxPool2DGPU(std::shared_ptr<Layer> prev, int stride)
 
 MaxPool2DGPU::~MaxPool2DGPU() 
 {
-    cudaFree(m_output);
+    CHECK(cudaFree(m_output));
 }
 
 const float* MaxPool2DGPU::output() const
@@ -24,15 +23,19 @@ std::tuple<int, int, int> MaxPool2DGPU::dimension() const
 {
     auto [x, y, z] = m_prev->dimension();
     return {
-        (x + m_stride - 1) / m_stride,
-        (y + m_stride - 1) / m_stride,
+        (x + MAXPOOL2D_STRIDE - 1) / MAXPOOL2D_STRIDE,
+        (y + MAXPOOL2D_STRIDE - 1) / MAXPOOL2D_STRIDE,
         z
     };
 }
 
-__global__ void maxpool2d_forward_kernel(float* output, const float* input, size_t input_col, size_t input_row, int stride) {
+template <int stride>
+__global__ void maxpool2d_forward_kernel(float* output, const float* input, size_t input_col, size_t input_row, 
+                                            size_t input_size, size_t output_size) {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
     int y = blockDim.y * blockIdx.y + threadIdx.y;
+    int c = blockIdx.z;
+
     int output_col = (input_col + stride - 1) / stride;
     int output_row = (input_row + stride - 1) / stride;
     
@@ -41,45 +44,59 @@ __global__ void maxpool2d_forward_kernel(float* output, const float* input, size
 
     int x_input = stride * x;
     int y_input = stride * y;
-    
+    const float* cur_input = input + (c * input_size);
+    float* cur_output = output + (c * output_size);
+
     float max = -INFINITY;
+    #pragma unroll
     for (int i = 0; i < stride; ++i) {
+        #pragma unroll
         for (int j = 0; j < stride; ++j) {
             int cur_y = y_input + i;
             int cur_x = x_input + j;
             if (cur_y < input_row && cur_x < input_col)
-                max = fmaxf(max, input[cur_y * input_col + cur_x]);
+                max = fmaxf(max, cur_input[cur_y * input_col + cur_x]);
         }
     }
-    output[y * output_col + x] = max;
+    cur_output[y * output_col + x] = max;
 }
 
 void MaxPool2DGPU::forward() {
     m_prev->forward();
     auto [in_x, in_y, in_z] = m_prev->dimension();
     auto [out_x, out_y, out_z] = dimension();
-    size_t input_size = in_x * in_y;
-    size_t output_size = out_x * out_y;
+    
+    int input_size = in_x * in_y;
+    int output_size = out_x * out_y;
 
     dim3 blockSize(BLOCK_SIZE_2D, BLOCK_SIZE_2D);
     dim3 gridSize(
-        (out_x + blockSize.x - 1 ) / blockSize.x,
-        (out_y + blockSize.y - 1) / blockSize.y
-    );
+            (out_x + blockSize.x - 1) / blockSize.x,
+            (out_y + blockSize.y - 1) / blockSize.y,
+            in_z
+        );
 
-    for (int c = 0; c < in_z; ++c)
-        maxpool2d_forward_kernel<<<gridSize, blockSize>>>(m_output + c * output_size, 
-                                                          m_prev->output() + c * input_size, in_x, in_y, m_stride);
+    maxpool2d_forward_kernel<MAXPOOL2D_STRIDE><<<gridSize, blockSize>>>(
+            m_output,
+            m_prev->output(),
+            in_x,
+            in_y,
+            input_size,
+            output_size
+        );
 
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 }
 
+template <int stride>
 __global__ void maxpool2d_backward_kernel(const float* grad_output, float* grad_input, const float* input, const float* output,
-    size_t input_row, size_t input_col, int stride) 
+    int input_row, int input_col, int input_size, int output_size) 
 {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
     int y = blockDim.y * blockIdx.y + threadIdx.y;
+    int c = blockIdx.z;
+
     int output_col = (input_col + stride - 1) / stride;
     int output_row = (input_row + stride - 1) / stride;
     
@@ -88,16 +105,20 @@ __global__ void maxpool2d_backward_kernel(const float* grad_output, float* grad_
     int x_input = stride * x;
     int y_input = stride * y;
     
-    float max_val = output[y * output_col + x];
-    float grad = grad_output[y * output_col + x];
+    const float* cur_input = input + (c * input_size);
+    const float* cur_output = output + (c * output_size);
+    grad_input  += c * input_size;
+    grad_output += c * output_size;
     
+    #pragma unroll
     for (int i = 0; i < stride; ++i) {
+        #pragma unroll
         for (int j = 0; j < stride; ++j) {
             int cur_y = y_input + i;
             int cur_x = x_input + j;
             if (cur_y < input_row && cur_x < input_col) {
-                if (input[cur_y * input_col + cur_x] == max_val)
-                    grad_input[cur_y * input_col + cur_x] = grad;
+                if (cur_input[cur_y * input_col + cur_x] == cur_output[y * output_col + x])
+                    grad_input[cur_y * input_col + cur_x] = grad_output[y * output_col + x];
             }
         }
     }
@@ -114,19 +135,19 @@ void MaxPool2DGPU::backward(float learning_rate, const float* grad_output) {
     dim3 blockSize(BLOCK_SIZE_2D, BLOCK_SIZE_2D);
     dim3 gridSize(
         (out_x + blockSize.x - 1 ) / blockSize.x,
-        (out_y + blockSize.y - 1) / blockSize.y
+        (out_y + blockSize.y - 1) / blockSize.y,
+        in_z
     );
 
     CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), in_x * in_y * in_z * sizeof(float)));
     CHECK(cudaMemset(grad_input, 0, in_x * in_y * in_z * sizeof(float)));
 
-    for (size_t c = 0; c < in_z; ++c)
-        maxpool2d_backward_kernel<<<gridSize, blockSize>>>(
-            grad_output + c * output_size,
-            grad_input + c * input_size,
-            m_prev->output() + c * input_size,
-            m_output + c * output_size,
-            in_y, in_x, m_stride);
+    maxpool2d_backward_kernel<MAXPOOL2D_STRIDE><<<gridSize, blockSize>>>(
+        grad_output,
+        grad_input,
+        m_prev->output(),
+        m_output,
+        in_y, in_x, input_size, output_size);
 
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());    

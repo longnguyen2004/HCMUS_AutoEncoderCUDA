@@ -2,13 +2,13 @@
 #include <constants.h>
 #include <helper/gpu_helper.h>
 
-__global__ void relu_forward_kernel(float* out, const float* in, size_t size) {
+__global__ void relu_forward_kernel(float* out, const float* in, int size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size)
         out[idx] = fmaxf(0.0f, in[idx]);
 }
 
-__global__ void relu_backward_kernel(const float* grad_output, const float* input, float* grad_input, size_t size) {
+__global__ void relu_backward_kernel(const float* grad_output, const float* input, float* grad_input, int size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (idx >= size) return;
@@ -51,7 +51,7 @@ void ReluGPU::forward()
 
 void ReluGPU::backward(float learning_rate, const float* grad_output) {
     auto [x, y, z] = m_prev->dimension();
-    size_t size = x * y * z;
+    int size = x * y * z;
     float* grad_input;
     CHECK(cudaMalloc(reinterpret_cast<void**>(&grad_input), size * sizeof(float)));
     dim3 blockSize(BLOCK_SIZE_1D);

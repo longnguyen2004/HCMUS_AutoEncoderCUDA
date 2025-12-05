@@ -6,12 +6,11 @@
 class MaxPool2DCPU : public Layer
 {
 private:
-  int m_stride;
   std::shared_ptr<Layer> m_prev;
   std::vector<float> m_output;
 
 public:
-  MaxPool2DCPU(std::shared_ptr<Layer> prev, int stride);
+  MaxPool2DCPU(std::shared_ptr<Layer> prev);
   ~MaxPool2DCPU() = default;
   void forward();
   void backward(float learning_rate, const float *grad_output);
@@ -24,12 +23,12 @@ public:
 class MaxPool2DGPU : public Layer
 {
 private:
-  int m_stride;
   std::shared_ptr<Layer> m_prev;
   float* m_output;
 
 public:
-  MaxPool2DGPU(std::shared_ptr<Layer> prev, int stride);
+  MaxPool2DGPU(std::shared_ptr<Layer> prev);
+  ~MaxPool2DGPU();
   void forward();
   void backward(float learning_rate, const float *grad_output);
   const float *output() const;

@@ -1,8 +1,9 @@
 #include "../maxpool2d.h"
 #include <mdspan/mdspan.hpp>
 #include <algorithm>
+#include <constants.h>
 
-MaxPool2DCPU::MaxPool2DCPU(std::shared_ptr<Layer>prev, int stride): m_prev(prev), m_stride(stride) {
+MaxPool2DCPU::MaxPool2DCPU(std::shared_ptr<Layer>prev): m_prev(prev) {
     auto [x, y, z] = dimension();
     this->m_output.resize(x * y * z);
 }
@@ -11,8 +12,8 @@ std::tuple<int, int, int> MaxPool2DCPU::dimension() const
 {
     auto [x, y, z] = m_prev->dimension();
     return {
-        (x + m_stride - 1) / m_stride,
-        (y + m_stride - 1) / m_stride,
+        (x + MAXPOOL2D_STRIDE - 1) / MAXPOOL2D_STRIDE,
+        (y + MAXPOOL2D_STRIDE - 1) / MAXPOOL2D_STRIDE,
         z
     };
 }
@@ -30,8 +31,8 @@ void MaxPool2DCPU::forward() {
         {
             for (int j = 0; j < in_x; ++j)
             {
-                int i_mapped = i / m_stride;
-                int j_mapped = j / m_stride;
+                int i_mapped = i / MAXPOOL2D_STRIDE;
+                int j_mapped = j / MAXPOOL2D_STRIDE;
                 output(c, i_mapped, j_mapped) = std::fmaxf(output(c, i_mapped, j_mapped), input(c, i, j));
             }
         }
@@ -52,8 +53,8 @@ void MaxPool2DCPU::backward(float learning_rate, const float* grad_output) {
         {
             for (int j = 0; j < in_x; ++j)
             {
-                int i_mapped = i / m_stride;
-                int j_mapped = j / m_stride;
+                int i_mapped = i / MAXPOOL2D_STRIDE;
+                int j_mapped = j / MAXPOOL2D_STRIDE;
                 grad_input_3d(c, i, j) =
                     input_3d(c, i, j) == output_3d(c, i_mapped, j_mapped)
                         ? grad_output_3d(c, i_mapped, j_mapped) : 0; 
