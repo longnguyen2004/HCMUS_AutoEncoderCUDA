@@ -25,6 +25,6 @@ public:
   void setParams(float* params) override;
 
 private:
-  float *m_weights, *m_biases;
+  float *m_weights, *m_biases, *grad_weights, *grad_biases;
   int m_kernel_size, m_filters;
 };

@@ -17,8 +17,8 @@ add_executable(
     src/layer/input/gpu/input.cu
     src/layer/activation/cpu/relu.cpp
     src/layer/activation/gpu/relu.cu
-    #src/layer/conv/cpu/conv2d.cpp
-    #src/layer/conv/gpu/conv2d.cu
+    src/layer/conv/cpu/conv2d.cpp
+    src/layer/conv/gpu/conv2d.cu
     src/layer/pooling/gpu/maxpool2d.cu
     src/layer/pooling/cpu/maxpool2d.cpp
     src/layer/upsampling/cpu/upsample2d.cpp
@@ -30,5 +30,6 @@ add_executable(
     src/stbi_write.cpp
 )
 set(CMAKE_CUDA_ARCHITECTURES 75)
+target_link_libraries(AUTOENCODER_EXEC PRIVATE mdspan)
 target_include_directories(AUTOENCODER_EXEC PRIVATE include src)
 target_compile_features(AUTOENCODER_EXEC PRIVATE cxx_std_20)
