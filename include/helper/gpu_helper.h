@@ -4,10 +4,12 @@
 #include <stdlib.h>
 #include <cmath>
 
-inline void CHECK(const cudaError_t error) {
-    if (error == cudaSuccess) return;
-    fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__, cudaGetErrorString(error));
-    exit(EXIT_FAILURE); 
+#define CHECK(error) { \
+    const cudaError_t err = (error); \
+    if (err != cudaSuccess) { \
+        fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
+        exit(EXIT_FAILURE); \
+    } \
 }
 
 

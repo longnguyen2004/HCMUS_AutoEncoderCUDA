@@ -41,8 +41,8 @@ public:
 
 class LayerGPU : public Layer{
 protected:
-  float* m_output;
-  float* grad_input;
+  float* m_output = nullptr;
+  float* grad_input = nullptr;
 public: 
   virtual ~LayerGPU() 
   {

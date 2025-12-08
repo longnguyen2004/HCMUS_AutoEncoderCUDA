@@ -2,6 +2,7 @@
 #include <istream>
 #include <cstdlib>
 #include <vector>
+#include <cstdint>
 
 struct Image
 {
