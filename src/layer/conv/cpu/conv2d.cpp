@@ -62,7 +62,7 @@ Conv2DCPU::Conv2DCPU(std::shared_ptr<Layer> prev, int kernel_size, int filters):
     auto [in_x, in_y, in_z] = m_prev->dimension();
     auto [x, y, z] = this->dimension();
     m_output.resize(x * y * z);
-    grad_input.resize(in_x, in_y, in_z);
+    grad_input.resize(in_x * in_y * in_z);
     m_grad_weights.resize(m_kernel_size * m_kernel_size * m_filters * in_z);
     m_grad_biases.resize(m_filters);
 }
@@ -133,7 +133,7 @@ void Conv2DCPU::backward(float learning_rate, const float *grad_output)
         // Compute bias gradient
         for (int w = 0; w < out_w; ++w)
             for (int h = 0; h < out_h; ++h)
-                m_bias_gradients[i] += grad_out(i, w, h);
+                m_grad_biases[i] += grad_out(i, w, h);
 
         // For each input channel
         for (int j = 0; j < in_c; ++j)
