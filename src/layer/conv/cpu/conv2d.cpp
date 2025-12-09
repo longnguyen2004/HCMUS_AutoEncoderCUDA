@@ -56,8 +56,9 @@ void convolve_cpu_backward_kernel(float *grad_kernel, const float *grad_dst, con
 }
 
 Conv2DCPU::Conv2DCPU(std::shared_ptr<Layer> prev, int kernel_size, int filters):
-    m_prev(prev), m_kernel_size(kernel_size), m_filters(filters)
+    m_kernel_size(kernel_size), m_filters(filters)
 {
+    m_prev = prev;
     auto [in_x, in_y, in_z] = m_prev->dimension();
     auto [x, y, z] = this->dimension();
     m_output.resize(x * y * z);
