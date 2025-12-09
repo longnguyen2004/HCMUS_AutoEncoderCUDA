@@ -26,6 +26,7 @@ __global__ void convolve_gpu_kernel(
                 s_src[j * tileWidth + i] = 0;
             else
                 s_src[j * tileWidth + i] = src[gy * col + gx];
+            __syncthreads();
         }
     }
 
@@ -209,7 +210,7 @@ void Conv2DGPU::forward()
             out.data_handle() + out.mapping()(i, 0, 0),
             m_biases + i, n);
     }
-    cudaDeviceSynchronize();
+    CHECK(cudaDeviceSynchronize());
 }
 void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
 {
@@ -253,6 +254,6 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
             grad_biases + oc, grad_output.data_handle() + grad_output.mapping()(oc, 0, 0), out_h * out_w
         );
     }
-    cudaDeviceSynchronize();
+    CHECK(cudaDeviceSynchronize());
     m_prev->backward(learning_rate, this->grad_input);
 }
