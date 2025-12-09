@@ -2,16 +2,20 @@
 
 class InputCPU : public LayerCPU {
 public:
-  InputCPU(const std::vector<float>& input);
+  InputCPU();
+  void setImage(const std::vector<float> &image);
   std::tuple<int, int, int> dimension() const override;
   const float* output() const override;
   void forward() override { return; };
-  void backward(float learning_rate, const float* grad_output) override { return; };
+  void backward(float learning_rate, const float* grad_output) override {};
+private:
+  std::vector<float> *m_image;
 };
 
 class InputGPU : public LayerGPU {
 public:
-  InputGPU(const std::vector<float>& input);
+  InputGPU();
+  void setImage(const std::vector<float> &image);
   std::tuple<int, int, int> dimension() const override;
   const float* output() const override;
   void forward() override {};

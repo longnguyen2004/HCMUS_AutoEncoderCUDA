@@ -1,13 +1,16 @@
 #include "../input.h"
 #include <constants.h>
 
-InputGPU::InputGPU(const std::vector<float>& input) {
+InputGPU::InputGPU() {
   cudaMalloc((void**)&m_output, IMAGE_BYTE_SIZE);
-  cudaMemcpy(m_output, input.data(), IMAGE_BYTE_SIZE, cudaMemcpyHostToDevice);
+}
+
+void InputGPU::setImage(const std::vector<float> &image) {
+  cudaMemcpy(m_output, image.data(), image.size() * sizeof(float), cudaMemcpyHostToDevice);
 }
 
 std::tuple<int, int, int> InputGPU::dimension() const {
-  return std::make_tuple(IMAGE_DIMENSION, IMAGE_DIMENSION, IMAGE_DIMENSION);
+  return std::make_tuple(IMAGE_DIMENSION, IMAGE_DIMENSION, 3);
 }
 
 const float* InputGPU::output() const {
