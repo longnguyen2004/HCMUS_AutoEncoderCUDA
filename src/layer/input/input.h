@@ -9,7 +9,7 @@ public:
   void forward() override { return; };
   void backward(float learning_rate, const float* grad_output) override {};
 private:
-  std::vector<float> *m_image;
+  const std::vector<float> *m_image;
 };
 
 class InputGPU : public LayerGPU {
