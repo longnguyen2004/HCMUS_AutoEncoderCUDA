@@ -11,6 +11,7 @@ public:
   void setParams(float* params) override;
 
 private:
+  std::vector<float> m_grad_weights, m_grad_biases;
   float *m_weights, *m_biases;
   int m_kernel_size, m_filters;
 };

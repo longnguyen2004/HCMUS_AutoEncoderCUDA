@@ -248,7 +248,7 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
                 in_w, in_h, m_kernel_size, padding);
         }
         dim3 blockSize{TILE_SIZE};
-        dim3 gridSize{(m_filters + TILE_SIZE - 1) / TILE_SIZE};
+        dim3 gridSize{(m_filters + TILE_SIZE - 1u) / TILE_SIZE};
         reduction_kernel<TILE_SIZE><<<gridSize, blockSize>>>(
             grad_biases + oc, grad_output.data_handle() + grad_output.mapping()(oc, 0, 0), out_h * out_w
         );
