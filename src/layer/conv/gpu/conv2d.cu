@@ -1,5 +1,6 @@
 #include "../conv2d.h"
 #include <mdspan/mdspan.hpp>
+#include <core/optimizer.h>
 
 __global__ void convolve_gpu_kernel(
     float *dst, const float *src, const float *kernel, int col, int row, int kernel_width, bool real_convolve = false)
@@ -26,7 +27,6 @@ __global__ void convolve_gpu_kernel(
                 s_src[j * tileWidth + i] = 0;
             else
                 s_src[j * tileWidth + i] = src[gy * col + gx];
-            __syncthreads();
         }
     }
 
@@ -47,7 +47,7 @@ __global__ void convolve_gpu_kernel(
             pixel += s_src[tileWidth * y_mapped + x_mapped] * kernel[y_kernel * kernel_width + x_kernel];
         }
     }
-    dst[col * y + x] += pixel;
+    atomicAdd(&dst[col * y + x], pixel);
 }
 
 __global__ void bias_kernel(float *out, const float *bias, int n)
@@ -184,7 +184,7 @@ void Conv2DGPU::forward()
     auto out = Kokkos::mdspan(m_output, out_c, out_w, out_h);
     auto weights = Kokkos::mdspan(m_weights, out_c, in_c, m_kernel_size, m_kernel_size);
 
-    dim3 blockSize{32, 32};
+    dim3 blockSize{16, 16};
     dim3 gridSize{
         (in_w + blockSize.x - 1) / blockSize.x,
         (in_h + blockSize.y - 1) / blockSize.y};
@@ -197,7 +197,7 @@ void Conv2DGPU::forward()
         {
             // Convolve the channel with the kernel for that channel
             // TODO: use the unused z part of blockSize for multi-channel calc
-            convolve_gpu_kernel<<<gridSize, blockSize, (in_w + padding * 2) * (in_h + padding * 2) * sizeof(float)>>>(
+            convolve_gpu_kernel<<<gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float)>>>(
                 out.data_handle() + out.mapping()(i, 0, 0),
                 in.data_handle() + in.mapping()(j, 0, 0),
                 weights.data_handle() + weights.mapping()(i, j, 0, 0),
@@ -224,7 +224,7 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
     auto grad_input = Kokkos::mdspan(this->grad_input, in_c, in_w, in_h);
     auto weights = Kokkos::mdspan(m_weights, out_c, in_c, m_kernel_size, m_kernel_size);
     auto grad_weights = Kokkos::mdspan(this->grad_weights, out_c, in_c, m_kernel_size, m_kernel_size);
-    dim3 blockSize{32, 32};
+    dim3 blockSize{16, 16};
     dim3 gridSize{
         (in_w + blockSize.x - 1) / blockSize.x,
         (in_h + blockSize.y - 1) / blockSize.y};
@@ -233,15 +233,18 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
     // For each filter
     for (int oc = 0; oc < out_c; ++oc)
     {
-        constexpr int TILE_SIZE = 32;
+        constexpr int TILE_SIZE = 16;
         // For each input channel
         for (int ic = 0; ic < in_c; ++ic)
         {
-            convolve_gpu_kernel<<<gridSize, blockSize, (in_w + padding * 2) * (in_h + padding * 2) * sizeof(float)>>>(
+            dim3 grad_gridSize{
+                (out_w + blockSize.x - 1) / blockSize.x,
+                (out_h + blockSize.y - 1) / blockSize.y};
+            convolve_gpu_kernel<<<grad_gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float)>>>(
                 grad_input.data_handle() + grad_input.mapping()(ic, 0, 0),
                 grad_output.data_handle() + grad_output.mapping()(oc, 0, 0),
                 weights.data_handle() + weights.mapping()(oc, ic, 0, 0),
-                in_w, in_h, m_kernel_size, true);
+                out_w, out_h, m_kernel_size, true);
             grad_weights_kernel<TILE_SIZE, TILE_SIZE><<<dim3(m_kernel_size, m_kernel_size), dim3(TILE_SIZE, TILE_SIZE)>>>(
                 grad_weights.data_handle() + grad_weights.mapping()(oc, ic, 0, 0),
                 in.data_handle() + in.mapping()(ic, 0, 0),
@@ -254,6 +257,9 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
             grad_biases + oc, grad_output.data_handle() + grad_output.mapping()(oc, 0, 0), out_h * out_w
         );
     }
+    updateWeightsGPU(m_weights, this->grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
+    updateWeightsGPU(m_biases, this->grad_biases, learning_rate, m_filters);
     CHECK(cudaDeviceSynchronize());
+    CHECK(cudaGetLastError());
     m_prev->backward(learning_rate, this->grad_input);
 }

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(autoencoder CXX CUDA)
 
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")  # enable cuda-gdb
+
 include(FetchContent)
 FetchContent_Declare(
   mdspan
@@ -23,6 +25,12 @@ add_executable(
     src/layer/pooling/cpu/maxpool2d.cpp
     src/layer/upsampling/cpu/upsample2d.cpp
     src/layer/upsampling/gpu/upsample2d.cu
+    src/layer/output/cpu/output.cpp
+    src/layer/output/gpu/output.cu
+
+    # Core
+    src/core/optimizer.cpp
+    src/core/optimizer.cu
 
     # Utils
     src/main.cpp

@@ -3,3 +3,4 @@
 #include "../src/layer/conv/conv2d.h"
 #include "../src/layer/pooling/maxpool2d.h"
 #include "../src/layer/upsampling/upsample2d.h"
+#include "../src/layer/output/output.h"

@@ -49,6 +49,9 @@ int main(int argc, char const *argv[])
     layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
     layers.push_back(std::make_shared<UpSample2DGPU>(*layers.rbegin()));
     layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 3));
+
+    auto output = std::make_shared<OutputGPU>(*layers.rbegin());
+    layers.push_back(output);
     auto [x2, y2, c2] = (*layers.rbegin())->dimension();
     std::cout << "Decoder output dimension: " << x2 << ' ' << y2 << ' ' << c2 << std::endl;
 
@@ -61,7 +64,7 @@ int main(int argc, char const *argv[])
     std::vector<float> paramsVec(paramsCount);
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::uniform_real_distribution dist(-1.0f, 1.0f);
+    std::normal_distribution<float> dist(0.0f, 0.02f);  // He initialization approximation
     for (auto& param: paramsVec)
         param = dist(mt);
     CHECK(cudaMalloc(reinterpret_cast<void**>(&params), paramsCount * sizeof(float)));
@@ -75,10 +78,14 @@ int main(int argc, char const *argv[])
     }
 
     // Here we go
+    float learning_rate = 0.01f;
     for (const auto& image: images)
     {
         input->setImage(image.data);
+        output->setReferenceImage(image.data);
         (*layers.rbegin())->forward();
+        std::cout << "Loss: " << output->loss() << std::endl;
+        (*layers.rbegin())->backward(learning_rate, nullptr);
     }
     return 0;
 }
