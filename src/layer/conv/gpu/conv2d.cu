@@ -47,7 +47,81 @@ __global__ void convolve_gpu_kernel(
             pixel += s_src[tileWidth * y_mapped + x_mapped] * kernel[y_kernel * kernel_width + x_kernel];
         }
     }
-    atomicAdd(&dst[col * y + x], pixel);
+    if (real_convolve)
+        atomicAdd(&dst[col * y + x], pixel);
+    else
+        dst[col * y + x] += pixel;
+}
+
+// Batched version: processes multiple (out_channel, in_channel) pairs in parallel
+__global__ void convolve_batched_kernel(
+    float *dst, const float *src, const float *weights,
+    int col, int row, int kernel_width, int in_channels, int out_channels, bool real_convolve = false)
+{
+    extern __shared__ float s_src[];
+    int kernel_radius = kernel_width / 2;
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+    int blockStart_x = blockDim.x * blockIdx.x;
+    int blockStart_y = blockDim.y * blockIdx.y;
+    int oc = blockIdx.z;  // Output channel
+    int x = blockStart_x + tx;
+    int y = blockStart_y + ty;
+    
+    if (oc >= out_channels) return;
+
+    int tileWidth = blockDim.x + kernel_radius * 2;
+    int tileHeight = blockDim.y + kernel_radius * 2;
+    int plane_size = col * row;
+    int kernel_size = kernel_width * kernel_width;
+    
+    float result = 0.0f;
+    
+    // Process all input channels for this output channel
+    for (int ic = 0; ic < in_channels; ++ic)
+    {
+        // Load input tile for this input channel
+        for (int j = ty; j < tileHeight; j += blockDim.y)
+        {
+            for (int i = tx; i < tileWidth; i += blockDim.x)
+            {
+                int gy = blockStart_y - kernel_radius + j;
+                int gx = blockStart_x - kernel_radius + i;
+                if (gy < 0 || gy >= row || gx < 0 || gx >= col)
+                    s_src[j * tileWidth + i] = 0;
+                else
+                    s_src[j * tileWidth + i] = src[ic * plane_size + gy * col + gx];
+            }
+        }
+        __syncthreads();
+        
+        if (x < col && y < row)
+        {
+            const float* kernel = weights + (oc * in_channels + ic) * kernel_size;
+            float pixel = 0.0f;
+            for (int yf = 0; yf < kernel_width; ++yf)
+            {
+                for (int xf = 0; xf < kernel_width; ++xf)
+                {
+                    int x_mapped = tx + xf;
+                    int y_mapped = ty + yf;
+                    int y_kernel = real_convolve ? (kernel_width - 1 - yf) : yf;
+                    int x_kernel = real_convolve ? (kernel_width - 1 - xf) : xf;
+                    pixel += s_src[tileWidth * y_mapped + x_mapped] * kernel[y_kernel * kernel_width + x_kernel];
+                }
+            }
+            result += pixel;
+        }
+        __syncthreads();
+    }
+    
+    if (x < col && y < row)
+    {
+        if (real_convolve)
+            atomicAdd(&dst[oc * plane_size + y * col + x], result);
+        else
+            dst[oc * plane_size + y * col + x] = result;
+    }
 }
 
 __global__ void bias_kernel(float *out, const float *bias, int n)
@@ -55,6 +129,80 @@ __global__ void bias_kernel(float *out, const float *bias, int n)
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < n)
         out[i] += *bias;
+}
+
+__global__ void bias_batched_kernel(float *out, const float *biases, int n, int channels)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int c = blockIdx.z;
+    if (i < n && c < channels)
+        out[c * n + i] += biases[c];
+}
+
+template<int TILE_H, int TILE_W>
+__global__ void grad_weights_batched_kernel(
+    float *__restrict__ dW,       // [out_c * in_c * K * K]
+    const float *__restrict__ X,  // [in_c * H * W]
+    const float *__restrict__ dY, // [out_c * H * W]
+    int H, int W, int K, int pad, int in_c, int out_c)
+{
+    int kw = blockIdx.x;
+    int kh = blockIdx.y;
+    int pair_idx = blockIdx.z;  // Linear index for (oc, ic) pairs
+    
+    if (kw >= K || kh >= K) return;
+    
+    int oc = pair_idx / in_c;
+    int ic = pair_idx % in_c;
+    
+    if (oc >= out_c || ic >= in_c) return;
+
+    __shared__ float tileX[TILE_H][TILE_W];
+    __shared__ float tileDY[TILE_H][TILE_W];
+
+    float acc = 0.f;
+    int plane_size = H * W;
+
+    for (int ty = 0; ty < H; ty += TILE_H)
+    {
+        for (int tx = 0; tx < W; tx += TILE_W)
+        {
+            int lx = threadIdx.x;
+            int ly = threadIdx.y;
+
+            // Load X tile
+            int ix = tx + lx + pad - kw;
+            int iy = ty + ly + pad - kh;
+
+            if (ix >= 0 && ix < W && iy >= 0 && iy < H)
+                tileX[ly][lx] = X[ic * plane_size + iy * W + ix];
+            else
+                tileX[ly][lx] = 0.f;
+
+            // Load dY tile
+            int dyx = tx + lx;
+            int dyy = ty + ly;
+
+            if (dyx < W && dyy < H)
+                tileDY[ly][lx] = dY[oc * plane_size + dyy * W + dyx];
+            else
+                tileDY[ly][lx] = 0.f;
+
+            __syncthreads();
+
+            for (int i = 0; i < TILE_H; i++)
+            {
+                for (int j = 0; j < TILE_W; j++)
+                {
+                    acc += tileX[i][j] * tileDY[i][j];
+                }
+            }
+
+            __syncthreads();
+        }
+    }
+
+    dW[(oc * in_c + ic) * K * K + kh * K + kw] = acc;
 }
 
 template<int TILE_H, int TILE_W>
@@ -126,6 +274,34 @@ __global__ void grad_weights_kernel(
 }
 
 template <int TILE_SIZE>
+__global__ void reduction_batched_kernel(float *out, const float *in, int n, int channels)
+{
+    __shared__ float tile[TILE_SIZE];
+    int c = blockIdx.z;
+    if (c >= channels) return;
+    
+    int start = 2 * blockIdx.x * blockDim.x + threadIdx.x;
+    float sum = 0.0f;
+    
+    int offset = c * n;
+    if (start < n)
+        sum += in[offset + start];
+    if (start + blockDim.x < n)
+        sum += in[offset + start + blockDim.x];
+    tile[threadIdx.x] = sum;
+    __syncthreads();
+    
+    for (int stride = blockDim.x / 2; stride > 0; stride /= 2)
+    {
+        if (threadIdx.x < stride)
+            tile[threadIdx.x] += tile[threadIdx.x + stride];
+        __syncthreads();
+    }
+    if (threadIdx.x == 0)
+        atomicAdd(&out[c], tile[0]);
+}
+
+template <int TILE_SIZE>
 __global__ void reduction_kernel(float *out, const float *in, int n)
 {
     __shared__ float tile[TILE_SIZE];
@@ -156,10 +332,6 @@ Conv2DGPU::Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) 
     cudaMalloc(reinterpret_cast<void **>(&grad_input), in_x * in_y * in_z * sizeof(float));
     cudaMalloc(reinterpret_cast<void **>(&grad_weights), m_kernel_size * m_kernel_size * in_z * z * sizeof(float));
     cudaMalloc(reinterpret_cast<void **>(&grad_biases), x * y * z * sizeof(float));
-    
-    for (int i = 0; i < NUM_STREAMS; ++i) {
-        CHECK(cudaStreamCreate(&streams[i]));
-    }
 }
 
 Conv2DGPU::~Conv2DGPU() {
@@ -167,9 +339,6 @@ Conv2DGPU::~Conv2DGPU() {
     cudaFree(grad_input);
     cudaFree(grad_weights);
     cudaFree(grad_biases);
-    for (int i = 0; i < NUM_STREAMS; ++i) {
-        CHECK(cudaStreamDestroy(streams[i]));
-    }
 }
 std::tuple<int, int, int> Conv2DGPU::dimension() const
 {
@@ -192,37 +361,26 @@ void Conv2DGPU::forward()
     m_prev->forward();
     auto [in_w, in_h, in_c] = m_prev->dimension();
     auto [out_w, out_h, out_c] = dimension();
-    cudaMemset(m_output, 0, out_w * out_h * out_c * sizeof(float));
-
-    auto in = Kokkos::mdspan(m_prev->output(), in_c, in_w, in_h);
-    auto out = Kokkos::mdspan(m_output, out_c, out_w, out_h);
-    auto weights = Kokkos::mdspan(m_weights, out_c, in_c, m_kernel_size, m_kernel_size);
-
+    
+    // Single batched convolution for all channels
     dim3 blockSize{16, 16};
     dim3 gridSize{
         (in_w + blockSize.x - 1) / blockSize.x,
-        (in_h + blockSize.y - 1) / blockSize.y};
+        (in_h + blockSize.y - 1) / blockSize.y,
+        static_cast<unsigned int>(out_c)};  // Z dimension for output channels
     int padding = m_kernel_size / 2;
-    // For each filter - use streams to parallelize across output channels
-    for (int i = 0; i < out_c; ++i)
-    {
-        cudaStream_t stream = streams[i % NUM_STREAMS];
-        // For each input channel
-        for (int j = 0; j < in_c; ++j)
-        {
-            convolve_gpu_kernel<<<gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float), stream>>>(
-                out.data_handle() + out.mapping()(i, 0, 0),
-                in.data_handle() + in.mapping()(j, 0, 0),
-                weights.data_handle() + weights.mapping()(i, j, 0, 0),
-                in_w, in_h, m_kernel_size);
-        }
-        int n = out_w * out_h;
-        dim3 biasBlockSize{32};
-        dim3 biasGridSize{(n + biasBlockSize.x - 1) / biasBlockSize.x};
-        bias_kernel<<<biasGridSize, biasBlockSize, 0, stream>>>(
-            out.data_handle() + out.mapping()(i, 0, 0),
-            m_biases + i, n);
-    }
+    size_t smem = (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float);
+    
+    convolve_batched_kernel<<<gridSize, blockSize, smem>>>(
+        m_output, m_prev->output(), m_weights,
+        in_w, in_h, m_kernel_size, in_c, out_c, false);
+    
+    // Add biases - also batched
+    int n = out_w * out_h;
+    dim3 biasBlockSize{256};
+    dim3 biasGridSize{(n + biasBlockSize.x - 1) / biasBlockSize.x, 1, (unsigned int)out_c};
+    bias_batched_kernel<<<biasGridSize, biasBlockSize>>>(
+        m_output, m_biases, n, out_c);
 }
 void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
 {
@@ -231,53 +389,42 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
     cudaMemset(grad_input, 0, in_w * in_h * in_c * sizeof(float));
     cudaMemset(grad_weights, 0, m_kernel_size * m_kernel_size * in_c * out_c * sizeof(float));
     cudaMemset(grad_biases, 0, m_filters * sizeof(float));
-    auto in = Kokkos::mdspan(m_prev->output(), in_c, in_w, in_h);
-    auto grad_output = Kokkos::mdspan(_grad_output, out_c, out_w, out_h);
-    auto grad_input = Kokkos::mdspan(this->grad_input, in_c, in_w, in_h);
-    auto weights = Kokkos::mdspan(m_weights, out_c, in_c, m_kernel_size, m_kernel_size);
-    auto grad_weights = Kokkos::mdspan(this->grad_weights, out_c, in_c, m_kernel_size, m_kernel_size);
-    dim3 blockSize{16, 16};
-    dim3 gridSize{
-        (in_w + blockSize.x - 1) / blockSize.x,
-        (in_h + blockSize.y - 1) / blockSize.y};
+    
     int padding = m_kernel_size / 2;
-
-    // Use streams to parallelize across output channels
     constexpr int TILE_SIZE = 16;
     
-    for (int oc = 0; oc < out_c; ++oc)
-    {
-        cudaStream_t stream = streams[oc % NUM_STREAMS];
-        for (int ic = 0; ic < in_c; ++ic)
-        {
-            dim3 grad_gridSize{
-                (out_w + blockSize.x - 1) / blockSize.x,
-                (out_h + blockSize.y - 1) / blockSize.y};
-            convolve_gpu_kernel<<<grad_gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float), stream>>>(
-                grad_input.data_handle() + grad_input.mapping()(ic, 0, 0),
-                grad_output.data_handle() + grad_output.mapping()(oc, 0, 0),
-                weights.data_handle() + weights.mapping()(oc, ic, 0, 0),
-                out_w, out_h, m_kernel_size, true);
-            grad_weights_kernel<TILE_SIZE, TILE_SIZE><<<dim3(m_kernel_size, m_kernel_size), dim3(TILE_SIZE, TILE_SIZE), 0, stream>>>(
-                grad_weights.data_handle() + grad_weights.mapping()(oc, ic, 0, 0),
-                in.data_handle() + in.mapping()(ic, 0, 0),
-                grad_output.data_handle() + grad_output.mapping()(oc, 0, 0),
-                in_w, in_h, m_kernel_size, padding);
-        }
-        
-        dim3 biasBlockSize{TILE_SIZE};
-        dim3 biasGridSize{(m_filters + TILE_SIZE - 1u) / TILE_SIZE};
-        reduction_kernel<TILE_SIZE><<<biasGridSize, biasBlockSize, 0, stream>>>(
-            grad_biases + oc, grad_output.data_handle() + grad_output.mapping()(oc, 0, 0), out_h * out_w
-        );
-    }
+    // 1. Batched gradient input computation - all output channels in parallel
+    dim3 blockSize{16, 16};
+    dim3 gridSize{
+        (out_w + blockSize.x - 1) / blockSize.x,
+        (out_h + blockSize.y - 1) / blockSize.y,
+        static_cast<unsigned int>(out_c)};
+    size_t smem = (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float);
     
-    // Synchronize all streams before updating weights
-    for (int i = 0; i < NUM_STREAMS; ++i) {
-        CHECK(cudaStreamSynchronize(streams[i]));
-    }
-    updateWeightsGPU(m_weights, this->grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
-    updateWeightsGPU(m_biases, this->grad_biases, learning_rate, m_filters);
+    convolve_batched_kernel<<<gridSize, blockSize, smem>>>(
+        grad_input, _grad_output, m_weights,
+        out_w, out_h, m_kernel_size, in_c, out_c, true);
+    
+    // 2. Batched gradient weights computation - all (oc, ic) pairs in parallel
+    int total_pairs = out_c * in_c;
+    dim3 weightsGrid{(unsigned int)m_kernel_size, (unsigned int)m_kernel_size, (unsigned int)total_pairs};
+    dim3 weightsBlock{TILE_SIZE, TILE_SIZE};
+    
+    grad_weights_batched_kernel<TILE_SIZE, TILE_SIZE><<<weightsGrid, weightsBlock>>>(
+        grad_weights, m_prev->output(), _grad_output,
+        in_w, in_h, m_kernel_size, padding, in_c, out_c);
+    
+    // 3. Batched bias gradient reduction - all output channels in parallel
+    int n = out_h * out_w;
+    dim3 biasBlockSize{TILE_SIZE};
+    dim3 biasGridSize{(unsigned int)((n + 2 * TILE_SIZE - 1) / (2 * TILE_SIZE)), 1, (unsigned int)out_c};
+    
+    reduction_batched_kernel<TILE_SIZE><<<biasGridSize, biasBlockSize>>>(
+        grad_biases, _grad_output, n, out_c);
+    
+    CHECK(cudaDeviceSynchronize());
+    updateWeightsGPU(m_weights, grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
+    updateWeightsGPU(m_biases, grad_biases, learning_rate, m_filters);
     CHECK(cudaGetLastError());
-    m_prev->backward(learning_rate, this->grad_input);
+    m_prev->backward(learning_rate, grad_input);
 }

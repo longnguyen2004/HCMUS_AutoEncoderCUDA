@@ -27,8 +27,6 @@ public:
   void setParams(float* params) override;
 
 private:
-  static constexpr int NUM_STREAMS = 8;
-  cudaStream_t streams[NUM_STREAMS];
   float *m_weights, *m_biases, *grad_weights, *grad_biases;
   int m_kernel_size, m_filters;
 };
