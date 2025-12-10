@@ -38,7 +38,6 @@ void ReluGPU::forward()
     dim3 blockSize(BLOCK_SIZE_1D);
     dim3 gridSize((size + blockSize.x - 1) / blockSize.x);
     relu_forward_kernel<<<gridSize, blockSize>>>(m_output, m_prev->output(), size);
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 }
 
@@ -49,7 +48,6 @@ void ReluGPU::backward(float learning_rate, const float* grad_output) {
     dim3 blockSize(BLOCK_SIZE_1D);
     dim3 gridSize((size + blockSize.x - 1) / blockSize.x);
     relu_backward_kernel<<<gridSize, blockSize>>>(grad_output, m_prev->output(), grad_input, size);
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());    
     m_prev->backward(learning_rate, grad_input);
 }

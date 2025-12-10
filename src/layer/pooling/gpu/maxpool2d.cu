@@ -77,7 +77,6 @@ void MaxPool2DGPU::forward() {
             output_size
         );
 
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 }
 
@@ -139,7 +138,6 @@ void MaxPool2DGPU::backward(float learning_rate, const float* grad_output) {
         m_output,
         in_y, in_x, input_size, output_size);
 
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());    
     m_prev->backward(learning_rate, grad_input);
 }

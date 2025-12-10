@@ -210,7 +210,6 @@ void Conv2DGPU::forward()
             out.data_handle() + out.mapping()(i, 0, 0),
             m_biases + i, n);
     }
-    CHECK(cudaDeviceSynchronize());
 }
 void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
 {
@@ -230,11 +229,12 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
         (in_h + blockSize.y - 1) / blockSize.y};
     int padding = m_kernel_size / 2;
 
-    // For each filter
+    // Batch all operations - launch streams for all channel pairs at once
+    constexpr int TILE_SIZE = 16;
+    
+    // Launch all convolutions for gradient input in parallel using streams
     for (int oc = 0; oc < out_c; ++oc)
     {
-        constexpr int TILE_SIZE = 16;
-        // For each input channel
         for (int ic = 0; ic < in_c; ++ic)
         {
             dim3 grad_gridSize{
@@ -251,15 +251,22 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
                 grad_output.data_handle() + grad_output.mapping()(oc, 0, 0),
                 in_w, in_h, m_kernel_size, padding);
         }
-        dim3 blockSize{TILE_SIZE};
-        dim3 gridSize{(m_filters + TILE_SIZE - 1u) / TILE_SIZE};
-        reduction_kernel<TILE_SIZE><<<gridSize, blockSize>>>(
+    }
+    
+    // Batch all bias gradient reductions
+    for (int oc = 0; oc < out_c; ++oc)
+    {
+        dim3 biasBlockSize{TILE_SIZE};
+        dim3 biasGridSize{(m_filters + TILE_SIZE - 1u) / TILE_SIZE};
+        reduction_kernel<TILE_SIZE><<<biasGridSize, biasBlockSize>>>(
             grad_biases + oc, grad_output.data_handle() + grad_output.mapping()(oc, 0, 0), out_h * out_w
         );
     }
+    
+    // Single sync at the end instead of after each kernel
+    CHECK(cudaDeviceSynchronize());
     updateWeightsGPU(m_weights, this->grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
     updateWeightsGPU(m_biases, this->grad_biases, learning_rate, m_filters);
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
     m_prev->backward(learning_rate, this->grad_input);
 }

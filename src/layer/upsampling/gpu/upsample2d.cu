@@ -42,7 +42,6 @@ void UpSample2DGPU::forward()
     upsample2d_forward_kernel<SCALE_FACTOR><<<gridSize, blockSize>>>
                                     (m_output, m_prev->output(), y, x);
 
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 }
 
@@ -80,7 +79,6 @@ void UpSample2DGPU::backward(float learning_rate, const float* grad_output)
     upsample2d_backward_kernel<SCALE_FACTOR><<<gridSize, blockSize>>>
                                     (grad_input, grad_output, in_y, in_x);
 
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 
     m_prev->backward(learning_rate, grad_input);
