@@ -78,14 +78,22 @@ int main(int argc, char const *argv[])
     }
 
     // Here we go
+    int epochs = 20;
     float learning_rate = 0.01f;
-    for (const auto& image: images)
+    std::vector<const Image*> image_refs;
+    for (const auto &image: images)
+        image_refs.push_back(&image);
+    for (int i = 0; i < epochs; ++i)
     {
-        input->setImage(image.data);
-        output->setReferenceImage(image.data);
-        (*layers.rbegin())->forward();
-        std::cout << "Loss: " << output->loss() << std::endl;
-        (*layers.rbegin())->backward(learning_rate, nullptr);
+        std::shuffle(image_refs.begin(), image_refs.end(), mt);
+        for (const auto& image: images)
+        {
+            input->setImage(image.data);
+            output->setReferenceImage(image.data);
+            (*layers.rbegin())->forward();
+            std::cout << "Loss: " << output->loss() << std::endl;
+            (*layers.rbegin())->backward(learning_rate, nullptr);
+        }
     }
     return 0;
 }
