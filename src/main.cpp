@@ -75,11 +75,13 @@ int main(int argc, char const *argv[])
         if (auto conv2d = std::dynamic_pointer_cast<Conv2DGPU>(layer); conv2d != nullptr)
         {
             auto [prev_x, prev_y, prev_z] = layers[i - 1]->dimension();
-            std::normal_distribution<float> dist(0.0f, std::sqrtf(2.0f / (prev_x * prev_y * prev_z)));
-            for (size_t j = params_idx; j < params_idx + conv2d->weightCount(); ++j)
-                paramsVec[j] = dist(mt);
+            std::normal_distribution<float> dist(0.0f, std::sqrtf(2.0f / (3 * 3 * prev_z)));
+            for (size_t j = 0; j < conv2d->weightCount(); ++j)
+                paramsVec[params_idx + j] = dist(mt);
+            for (size_t j = conv2d->weightCount(); j < conv2d->paramCount(); ++j)
+                paramsVec[params_idx + j] = 0.0f;
         }
-        i += layer->paramCount();
+        params_idx += layer->paramCount();
     }
     CHECK(cudaMalloc(reinterpret_cast<void**>(&params), paramsCount * sizeof(float)));
     CHECK(cudaMemcpy(params, paramsVec.data(), paramsCount * sizeof(float), cudaMemcpyHostToDevice));
