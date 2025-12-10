@@ -157,52 +157,54 @@ __global__ void grad_weights_batched_kernel(
     
     if (oc >= out_c || ic >= in_c) return;
 
-    __shared__ float tileX[TILE_H][TILE_W];
-    __shared__ float tileDY[TILE_H][TILE_W];
-
-    float acc = 0.f;
+    float thread_acc = 0.f;
     int plane_size = H * W;
+
+    int lx = threadIdx.x;
+    int ly = threadIdx.y;
 
     for (int ty = 0; ty < H; ty += TILE_H)
     {
         for (int tx = 0; tx < W; tx += TILE_W)
         {
-            int lx = threadIdx.x;
-            int ly = threadIdx.y;
-
-            // Load X tile
+            // Load X value
             int ix = tx + lx + pad - kw;
             int iy = ty + ly + pad - kh;
+            float valX = 0.f;
 
             if (ix >= 0 && ix < W && iy >= 0 && iy < H)
-                tileX[ly][lx] = X[ic * plane_size + iy * W + ix];
-            else
-                tileX[ly][lx] = 0.f;
+                valX = X[ic * plane_size + iy * W + ix];
 
-            // Load dY tile
+            // Load dY value
             int dyx = tx + lx;
             int dyy = ty + ly;
+            float valDY = 0.f;
 
             if (dyx < W && dyy < H)
-                tileDY[ly][lx] = dY[oc * plane_size + dyy * W + dyx];
-            else
-                tileDY[ly][lx] = 0.f;
+                valDY = dY[oc * plane_size + dyy * W + dyx];
 
-            __syncthreads();
-
-            for (int i = 0; i < TILE_H; i++)
-            {
-                for (int j = 0; j < TILE_W; j++)
-                {
-                    acc += tileX[i][j] * tileDY[i][j];
-                }
-            }
-
-            __syncthreads();
+            thread_acc += valX * valDY;
         }
     }
 
-    dW[(oc * in_c + ic) * K * K + kh * K + kw] = acc;
+    // Reduction within the block
+    __shared__ float sdata[TILE_H * TILE_W];
+    int tid = ly * TILE_W + lx;
+    sdata[tid] = thread_acc;
+    __syncthreads();
+
+    // Tree reduction
+    int num_threads = TILE_H * TILE_W;
+    for (int s = num_threads / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        dW[(oc * in_c + ic) * K * K + kh * K + kw] = sdata[0];
+    }
 }
 
 template<int TILE_H, int TILE_W>
