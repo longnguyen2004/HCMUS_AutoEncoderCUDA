@@ -7,6 +7,8 @@
 #include <vector>
 #include <random>
 
+using namespace std::literals;
+
 int main(int argc, char const *argv[])
 {
     std::vector<Image> images;
@@ -79,7 +81,7 @@ int main(int argc, char const *argv[])
 
     // Here we go
     int epochs = 20;
-    float learning_rate = 0.01f;
+    float learning_rate = 0.001f;
     std::vector<const Image*> image_refs;
     for (const auto &image: images)
         image_refs.push_back(&image);
@@ -105,6 +107,10 @@ int main(int argc, char const *argv[])
             
             (*layers.rbegin())->backward(learning_rate, nullptr);
         }
+
+        std::ofstream paramsOut("params_epoch_"s + std::to_string(i) + ".bin"s);
+        cudaMemcpy(paramsVec.data(), params, paramsVec.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        paramsOut.write(reinterpret_cast<char*>(paramsVec.data()), paramsVec.size() * sizeof(float));
     }
     return 0;
 }
