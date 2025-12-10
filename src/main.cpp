@@ -83,15 +83,26 @@ int main(int argc, char const *argv[])
     std::vector<const Image*> image_refs;
     for (const auto &image: images)
         image_refs.push_back(&image);
+    
     for (int i = 0; i < epochs; ++i)
     {
         std::shuffle(image_refs.begin(), image_refs.end(), mt);
+        int img_count = 0;
+        float loss_sum = 0.0f;
+        
         for (const auto& image: images)
         {
             input->setImage(image.data);
             output->setReferenceImage(image.data);
             (*layers.rbegin())->forward();
-            std::cout << "Loss: " << output->loss() << std::endl;
+            loss_sum += output->loss();
+            img_count++;
+
+            if (img_count % 100 == 0) {
+                std::cout << "Epoch " << i << " Image " << img_count << " Avg Loss: " << (loss_sum / 100.0f) << std::endl;
+                loss_sum = 0.0f;
+            }
+            
             (*layers.rbegin())->backward(learning_rate, nullptr);
         }
     }
