@@ -349,8 +349,16 @@ std::tuple<int, int, int> Conv2DGPU::dimension() const
 }
 size_t Conv2DGPU::paramCount() const
 {
+    return weightCount() + biasCount();
+}
+size_t Conv2DGPU::weightCount() const
+{
     auto [prev_x, prev_y, prev_z] = m_prev->dimension();
-    return m_kernel_size * m_kernel_size * prev_z * m_filters + m_filters;
+    return m_kernel_size * m_kernel_size * prev_z * m_filters;
+}
+size_t Conv2DGPU::biasCount() const
+{
+    return m_filters;
 }
 void Conv2DGPU::setParams(float *params)
 {

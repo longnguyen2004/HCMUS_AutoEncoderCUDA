@@ -1,6 +1,7 @@
 #include "core/cifar_reader.h"
 #include <fstream>
 #include <iostream>
+#include <cmath>
 #include <layer.h>
 #include <memory>
 #include <string>
@@ -66,9 +67,20 @@ int main(int argc, char const *argv[])
     std::vector<float> paramsVec(paramsCount);
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::normal_distribution<float> dist(0.0f, 0.02f);  // He initialization approximation
-    for (auto& param: paramsVec)
-        param = dist(mt);
+
+    size_t params_idx = 0;
+    for (size_t i = 0; i < layers.size(); ++i)
+    {
+        auto& layer = layers[i];
+        if (auto conv2d = std::dynamic_pointer_cast<Conv2DGPU>(layer); conv2d != nullptr)
+        {
+            auto [prev_x, prev_y, prev_z] = layers[i - 1]->dimension();
+            std::normal_distribution<float> dist(0.0f, std::sqrtf(2.0f / (prev_x * prev_y * prev_z)));
+            for (size_t j = params_idx; j < params_idx + conv2d->weightCount(); ++j)
+                paramsVec[j] = dist(mt);
+        }
+        i += layer->paramCount();
+    }
     CHECK(cudaMalloc(reinterpret_cast<void**>(&params), paramsCount * sizeof(float)));
     CHECK(cudaMemcpy(params, paramsVec.data(), paramsCount * sizeof(float), cudaMemcpyHostToDevice));
 

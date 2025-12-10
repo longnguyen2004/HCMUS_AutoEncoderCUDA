@@ -25,6 +25,8 @@ public:
   std::tuple<int, int, int> dimension() const;
   size_t paramCount() const override;
   void setParams(float* params) override;
+  size_t weightCount() const;
+  size_t biasCount() const;
 
 private:
   float *m_weights, *m_biases, *grad_weights, *grad_biases;
