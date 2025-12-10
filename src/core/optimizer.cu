@@ -13,6 +13,5 @@ void updateWeightsGPU(float* params, const float* gradients, float learning_rate
     dim3 blockSize(BLOCK_SIZE_1D);
     dim3 gridSize((n + blockSize.x - 1) / blockSize.x);
     updateWeightsKernel<<<gridSize, blockSize>>>(params, gradients, learning_rate, n);
-    CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 }
