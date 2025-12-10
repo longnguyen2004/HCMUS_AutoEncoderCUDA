@@ -19,6 +19,7 @@ private:
 class Conv2DGPU : public LayerGPU {
 public:
   Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters);
+  ~Conv2DGPU();
   void forward();
   void backward(float learning_rate, const float* grad_output);
   std::tuple<int, int, int> dimension() const;
@@ -26,6 +27,8 @@ public:
   void setParams(float* params) override;
 
 private:
+  static constexpr int NUM_STREAMS = 8;
+  cudaStream_t streams[NUM_STREAMS];
   float *m_weights, *m_biases, *grad_weights, *grad_biases;
   int m_kernel_size, m_filters;
 };

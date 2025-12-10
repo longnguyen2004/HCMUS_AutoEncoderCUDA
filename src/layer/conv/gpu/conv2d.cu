@@ -156,6 +156,20 @@ Conv2DGPU::Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) 
     cudaMalloc(reinterpret_cast<void **>(&grad_input), in_x * in_y * in_z * sizeof(float));
     cudaMalloc(reinterpret_cast<void **>(&grad_weights), m_kernel_size * m_kernel_size * in_z * z * sizeof(float));
     cudaMalloc(reinterpret_cast<void **>(&grad_biases), x * y * z * sizeof(float));
+    
+    for (int i = 0; i < NUM_STREAMS; ++i) {
+        CHECK(cudaStreamCreate(&streams[i]));
+    }
+}
+
+Conv2DGPU::~Conv2DGPU() {
+    cudaFree(m_output);
+    cudaFree(grad_input);
+    cudaFree(grad_weights);
+    cudaFree(grad_biases);
+    for (int i = 0; i < NUM_STREAMS; ++i) {
+        CHECK(cudaStreamDestroy(streams[i]));
+    }
 }
 std::tuple<int, int, int> Conv2DGPU::dimension() const
 {
@@ -189,15 +203,14 @@ void Conv2DGPU::forward()
         (in_w + blockSize.x - 1) / blockSize.x,
         (in_h + blockSize.y - 1) / blockSize.y};
     int padding = m_kernel_size / 2;
-    // For each filter
+    // For each filter - use streams to parallelize across output channels
     for (int i = 0; i < out_c; ++i)
     {
+        cudaStream_t stream = streams[i % NUM_STREAMS];
         // For each input channel
         for (int j = 0; j < in_c; ++j)
         {
-            // Convolve the channel with the kernel for that channel
-            // TODO: use the unused z part of blockSize for multi-channel calc
-            convolve_gpu_kernel<<<gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float)>>>(
+            convolve_gpu_kernel<<<gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float), stream>>>(
                 out.data_handle() + out.mapping()(i, 0, 0),
                 in.data_handle() + in.mapping()(j, 0, 0),
                 weights.data_handle() + weights.mapping()(i, j, 0, 0),
@@ -206,7 +219,7 @@ void Conv2DGPU::forward()
         int n = out_w * out_h;
         dim3 biasBlockSize{32};
         dim3 biasGridSize{(n + biasBlockSize.x - 1) / biasBlockSize.x};
-        bias_kernel<<<biasGridSize, biasBlockSize>>>(
+        bias_kernel<<<biasGridSize, biasBlockSize, 0, stream>>>(
             out.data_handle() + out.mapping()(i, 0, 0),
             m_biases + i, n);
     }
@@ -229,42 +242,40 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
         (in_h + blockSize.y - 1) / blockSize.y};
     int padding = m_kernel_size / 2;
 
-    // Batch all operations - launch streams for all channel pairs at once
+    // Use streams to parallelize across output channels
     constexpr int TILE_SIZE = 16;
     
-    // Launch all convolutions for gradient input in parallel using streams
     for (int oc = 0; oc < out_c; ++oc)
     {
+        cudaStream_t stream = streams[oc % NUM_STREAMS];
         for (int ic = 0; ic < in_c; ++ic)
         {
             dim3 grad_gridSize{
                 (out_w + blockSize.x - 1) / blockSize.x,
                 (out_h + blockSize.y - 1) / blockSize.y};
-            convolve_gpu_kernel<<<grad_gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float)>>>(
+            convolve_gpu_kernel<<<grad_gridSize, blockSize, (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float), stream>>>(
                 grad_input.data_handle() + grad_input.mapping()(ic, 0, 0),
                 grad_output.data_handle() + grad_output.mapping()(oc, 0, 0),
                 weights.data_handle() + weights.mapping()(oc, ic, 0, 0),
                 out_w, out_h, m_kernel_size, true);
-            grad_weights_kernel<TILE_SIZE, TILE_SIZE><<<dim3(m_kernel_size, m_kernel_size), dim3(TILE_SIZE, TILE_SIZE)>>>(
+            grad_weights_kernel<TILE_SIZE, TILE_SIZE><<<dim3(m_kernel_size, m_kernel_size), dim3(TILE_SIZE, TILE_SIZE), 0, stream>>>(
                 grad_weights.data_handle() + grad_weights.mapping()(oc, ic, 0, 0),
                 in.data_handle() + in.mapping()(ic, 0, 0),
                 grad_output.data_handle() + grad_output.mapping()(oc, 0, 0),
                 in_w, in_h, m_kernel_size, padding);
         }
-    }
-    
-    // Batch all bias gradient reductions
-    for (int oc = 0; oc < out_c; ++oc)
-    {
+        
         dim3 biasBlockSize{TILE_SIZE};
         dim3 biasGridSize{(m_filters + TILE_SIZE - 1u) / TILE_SIZE};
-        reduction_kernel<TILE_SIZE><<<biasGridSize, biasBlockSize>>>(
+        reduction_kernel<TILE_SIZE><<<biasGridSize, biasBlockSize, 0, stream>>>(
             grad_biases + oc, grad_output.data_handle() + grad_output.mapping()(oc, 0, 0), out_h * out_w
         );
     }
     
-    // Single sync at the end instead of after each kernel
-    CHECK(cudaDeviceSynchronize());
+    // Synchronize all streams before updating weights
+    for (int i = 0; i < NUM_STREAMS; ++i) {
+        CHECK(cudaStreamSynchronize(streams[i]));
+    }
     updateWeightsGPU(m_weights, this->grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
     updateWeightsGPU(m_biases, this->grad_biases, learning_rate, m_filters);
     CHECK(cudaGetLastError());
