@@ -95,7 +95,7 @@ int main(int argc, char const *argv[])
 
     // Here we go
     int epochs = 20;
-    float learning_rate = 0.001f;
+    float learning_rate = 0.000001f;  // Very low due to 256 filters + 2x upsampling amplification
     std::vector<const Image*> image_refs;
     for (const auto &image: images)
         image_refs.push_back(&image);
@@ -106,16 +106,25 @@ int main(int argc, char const *argv[])
         int img_count = 0;
         float loss_sum = 0.0f;
         
-        for (const auto& image: images)
+        for (const auto& image: image_refs)
         {
-            input->setImage(image.data);
-            output->setReferenceImage(image.data);
+            input->setImage(image->data);
+            output->setReferenceImage(image->data);
             (*layers.rbegin())->forward();
-            loss_sum += output->loss();
+            
+            float current_loss = output->loss();
+            if (std::isnan(current_loss) || std::isinf(current_loss)) {
+                std::cerr << "NaN/Inf detected at epoch " << i << " image " << img_count << std::endl;
+                std::cerr << "Loss was: " << loss_sum / std::max(1, img_count % 100) << std::endl;
+                return 1;
+            }
+            
+            loss_sum += current_loss;
             img_count++;
 
             if (img_count % 100 == 0) {
-                std::cout << "Epoch " << i << " Image " << img_count << " Avg Loss: " << (loss_sum / 100.0f) << std::endl;
+                float avg_loss = loss_sum / 100.0f;
+                std::cout << "Epoch " << i << " Image " << img_count << " Avg Loss: " << avg_loss << std::endl;
                 loss_sum = 0.0f;
             }
             
