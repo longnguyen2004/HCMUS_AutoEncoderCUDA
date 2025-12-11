@@ -95,7 +95,7 @@ int main(int argc, char const *argv[])
 
     // Here we go
     int epochs = 20;
-    float learning_rate = 0.001f;
+    float learning_rate = 0.0001f;
     std::vector<const Image*> image_refs;
     for (const auto &image: images)
         image_refs.push_back(&image);
