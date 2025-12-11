@@ -1,6 +1,7 @@
 #include "../conv2d.h"
 #include <mdspan/mdspan.hpp>
 #include <core/optimizer.h>
+#include <cuda_runtime.h>
 
 __global__ void convolve_gpu_kernel(
     float *dst, const float *src, const float *kernel, int col, int row, int kernel_width, bool real_convolve = false)
@@ -56,7 +57,10 @@ __global__ void convolve_gpu_kernel(
 // Batched version: processes multiple (out_channel, in_channel) pairs in parallel
 __global__ void convolve_batched_kernel(
     float *dst, const float *src, const float *weights,
-    int col, int row, int kernel_width, int in_channels, int out_channels, bool real_convolve = false)
+    int col, int row, int kernel_width,
+    int in_channels, int out_channels,
+    bool real_convolve = false,
+    bool transpose_weights = false)
 {
     extern __shared__ float s_src[];
     int kernel_radius = kernel_width / 2;
@@ -97,7 +101,10 @@ __global__ void convolve_batched_kernel(
         
         if (x < col && y < row)
         {
-            const float* kernel = weights + (oc * in_channels + ic) * kernel_size;
+            int weight_index = transpose_weights
+                                   ? (ic * out_channels + oc)
+                                   : (oc * in_channels + ic);
+            const float* kernel = weights + weight_index * kernel_size;
             float pixel = 0.0f;
             for (int yf = 0; yf < kernel_width; ++yf)
             {
@@ -120,7 +127,7 @@ __global__ void convolve_batched_kernel(
         if (real_convolve)
             atomicAdd(&dst[oc * plane_size + y * col + x], result);
         else
-            dst[oc * plane_size + y * col + x] = result;
+            dst[oc * plane_size + y * col + x] += result;
     }
 }
 
@@ -187,23 +194,29 @@ __global__ void grad_weights_batched_kernel(
         }
     }
 
-    // Reduction within the block
+    // Reduction within the block (shared memory down to warp, then warp shuffle)
     __shared__ float sdata[TILE_H * TILE_W];
     int tid = ly * TILE_W + lx;
     sdata[tid] = thread_acc;
     __syncthreads();
 
-    // Tree reduction
     int num_threads = TILE_H * TILE_W;
-    for (int s = num_threads / 2; s > 0; s >>= 1) {
+    for (int s = num_threads / 2; s >= 32; s >>= 1) {
         if (tid < s) {
             sdata[tid] += sdata[tid + s];
         }
         __syncthreads();
     }
 
-    if (tid == 0) {
-        dW[(oc * in_c + ic) * K * K + kh * K + kw] = sdata[0];
+    float val = sdata[tid];
+    if (tid < 32) {
+        unsigned int mask = 0xffffffff;
+        for (int offset = 16; offset > 0; offset >>= 1) {
+            val += __shfl_down_sync(mask, val, offset);
+        }
+        if (tid == 0) {
+            dW[(oc * in_c + ic) * K * K + kh * K + kw] = val;
+        }
     }
 }
 
@@ -371,9 +384,10 @@ void Conv2DGPU::forward()
     m_prev->forward();
     auto [in_w, in_h, in_c] = m_prev->dimension();
     auto [out_w, out_h, out_c] = dimension();
-    
+    cudaMemset(m_output, 0, out_w * out_h * out_c * sizeof(float));
+
     // Single batched convolution for all channels
-    dim3 blockSize{16, 16};
+    dim3 blockSize{32, 32};
     dim3 gridSize{
         (in_w + blockSize.x - 1) / blockSize.x,
         (in_h + blockSize.y - 1) / blockSize.y,
@@ -404,16 +418,16 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
     constexpr int TILE_SIZE = 16;
     
     // 1. Batched gradient input computation - all output channels in parallel
-    dim3 blockSize{16, 16};
+    dim3 blockSize{32, 32};
     dim3 gridSize{
-        (out_w + blockSize.x - 1) / blockSize.x,
-        (out_h + blockSize.y - 1) / blockSize.y,
-        static_cast<unsigned int>(out_c)};
+        (in_w + blockSize.x - 1) / blockSize.x,
+        (in_h + blockSize.y - 1) / blockSize.y,
+        static_cast<unsigned int>(in_c)};
     size_t smem = (blockSize.x + padding * 2) * (blockSize.y + padding * 2) * sizeof(float);
     
     convolve_batched_kernel<<<gridSize, blockSize, smem>>>(
         grad_input, _grad_output, m_weights,
-        out_w, out_h, m_kernel_size, in_c, out_c, true);
+        in_w, in_h, m_kernel_size, out_c, in_c, true, true);
     
     // 2. Batched gradient weights computation - all (oc, ic) pairs in parallel
     int total_pairs = out_c * in_c;
@@ -433,6 +447,8 @@ void Conv2DGPU::backward(float learning_rate, const float *_grad_output)
         grad_biases, _grad_output, n, out_c);
     
     CHECK(cudaDeviceSynchronize());
+    clipGradientsGPU(grad_weights, 5.0f, out_c * in_c * m_kernel_size * m_kernel_size);
+    clipGradientsGPU(grad_biases, 5.0f, m_filters);
     updateWeightsGPU(m_weights, grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
     updateWeightsGPU(m_biases, grad_biases, learning_rate, m_filters);
     CHECK(cudaGetLastError());

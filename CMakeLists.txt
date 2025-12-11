@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(autoencoder CXX CUDA)
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")  # enable cuda-gdb
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")  # enable cuda-gdb
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
