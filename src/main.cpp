@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <random>
+#include <algorithm>
 
 using namespace std::literals;
 
@@ -18,7 +19,7 @@ int main(int argc, char const *argv[])
     labels.reserve(50000);
 
     for (int i = 1; i <= 5; ++i) {
-        std::string path = "cifar-10-batches-bin/data_batch_" + std::to_string(i) + ".bin";
+        std::string path = "../dataset/cifar-10-batches-bin/data_batch_" + std::to_string(i) + ".bin";
         std::ifstream file(path, std::ios_base::binary);
         if (!file) {
             std::cerr << "Error opening file: " << path << std::endl;
