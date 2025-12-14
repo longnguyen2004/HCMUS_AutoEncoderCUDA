@@ -180,8 +180,6 @@ Conv2DGPU::Conv2DGPU(std::shared_ptr<Layer> prev, int kernel_size, int filters) 
 }
 
 Conv2DGPU::~Conv2DGPU() {
-    cudaFree(m_output);
-    cudaFree(grad_input);
     cudaFree(grad_weights);
     cudaFree(grad_biases);
 }

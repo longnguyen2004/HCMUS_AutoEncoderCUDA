@@ -42,3 +42,33 @@ set(CMAKE_CUDA_ARCHITECTURES 75)
 target_link_libraries(AUTOENCODER_EXEC PRIVATE mdspan)
 target_include_directories(AUTOENCODER_EXEC PRIVATE include src)
 target_compile_features(AUTOENCODER_EXEC PRIVATE cxx_std_20)
+
+# Evaluation executable
+add_executable(
+  AUTOENCODER_EVAL
+    # Layers
+    src/layer/input/cpu/input.cpp
+    src/layer/input/gpu/input.cu
+    src/layer/activation/cpu/relu.cpp
+    src/layer/activation/gpu/relu.cu
+    src/layer/conv/cpu/conv2d.cpp
+    src/layer/conv/gpu/conv2d.cu
+    src/layer/pooling/gpu/maxpool2d.cu
+    src/layer/pooling/cpu/maxpool2d.cpp
+    src/layer/upsampling/cpu/upsample2d.cpp
+    src/layer/upsampling/gpu/upsample2d.cu
+    src/layer/output/cpu/output.cpp
+    src/layer/output/gpu/output.cu
+
+    # Core
+    src/core/optimizer.cpp
+    src/core/optimizer.cu
+
+    # Utils
+    src/evaluate.cpp
+    src/stbi.cpp
+    src/stbi_write.cpp
+)
+target_link_libraries(AUTOENCODER_EVAL PRIVATE mdspan)
+target_include_directories(AUTOENCODER_EVAL PRIVATE include src)
+target_compile_features(AUTOENCODER_EVAL PRIVATE cxx_std_20)
