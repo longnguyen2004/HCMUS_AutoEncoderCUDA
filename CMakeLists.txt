@@ -10,7 +10,6 @@ FetchContent_Declare(
   mdspan
   GIT_REPOSITORY https://github.com/kokkos/mdspan
   GIT_TAG        537053f83150f1b6f7528c1d961866d8628abc2e
-  FIND_PACKAGE_ARGS
 )
 FetchContent_MakeAvailable(mdspan)
 

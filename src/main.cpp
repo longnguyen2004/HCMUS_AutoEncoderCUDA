@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <random>
+#include <algorithm>
+#include <nvtx3/nvToolsExt.h>
 
 using namespace std::literals;
 
@@ -18,7 +20,7 @@ int main(int argc, char const *argv[])
     labels.reserve(50000);
 
     for (int i = 1; i <= 5; ++i) {
-        std::string path = "cifar-10-batches-bin/data_batch_" + std::to_string(i) + ".bin";
+        std::string path = "../dataset/cifar-10-batches-bin/data_batch_" + std::to_string(i) + ".bin";
         std::ifstream file(path, std::ios_base::binary);
         if (!file) {
             std::cerr << "Error opening file: " << path << std::endl;
@@ -95,13 +97,16 @@ int main(int argc, char const *argv[])
 
     // Here we go
     int epochs = 20;
-    float learning_rate = 0.0001f;
+    float learning_rate = 0.001f;
     std::vector<const Image*> image_refs;
     for (const auto &image: images)
         image_refs.push_back(&image);
     
     for (int i = 0; i < epochs; ++i)
     {
+        std::string msg = "Epoch " + std::to_string(i);
+        nvtxRangePushA(msg.c_str());
+        
         std::shuffle(image_refs.begin(), image_refs.end(), mt);
         int img_count = 0;
         float loss_sum = 0.0f;
@@ -134,6 +139,8 @@ int main(int argc, char const *argv[])
         std::ofstream paramsOut("params_epoch_"s + std::to_string(i) + ".bin"s);
         cudaMemcpy(paramsVec.data(), params, paramsVec.size() * sizeof(float), cudaMemcpyDeviceToHost);
         paramsOut.write(reinterpret_cast<char*>(paramsVec.data()), paramsVec.size() * sizeof(float));
+        
+        nvtxRangePop();
     }
     return 0;
 }

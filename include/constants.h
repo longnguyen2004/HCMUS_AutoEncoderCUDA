@@ -10,3 +10,4 @@ constexpr int IMAGE_PIXELS = IMAGE_DIMENSION * IMAGE_DIMENSION;
 constexpr size_t IMAGE_BYTE_SIZE = sizeof(float) * IMAGE_CHANNELS * IMAGE_PIXELS;
 constexpr int MAXPOOL2D_STRIDE = 2;
 constexpr int SCALE_FACTOR = 2;
+constexpr int TILE_WIDTH = 16;
