@@ -1,5 +1,5 @@
 #include "network.h"
-#include <layer.h>
+#include <layer/layer.h>
 #include <memory>
 
 std::vector<std::shared_ptr<LayerCPU>> make_encoder_cpu(

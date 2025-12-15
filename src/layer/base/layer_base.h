@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <memory>
 #include <vector>
-#include <helper/gpu_helper.h>
 
 enum DeviceType { CPU, GPU };
 
@@ -44,11 +43,7 @@ protected:
   float* m_output = nullptr;
   float* grad_input = nullptr;
 public: 
-  virtual ~LayerGPU() 
-  {
-    CHECK(cudaFree(m_output));
-    CHECK(cudaFree(grad_input));
-  }
+  virtual ~LayerGPU();
   const float* output() const override
   {
     return m_output;

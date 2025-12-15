@@ -2,12 +2,13 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
-#include <layer.h>
+#include <layer/layer.h>
 #include <memory>
 #include <string>
 #include <vector>
 #include <algorithm>
 #include <sys/stat.h>
+#include <helper/gpu_helper.h>
 
 #include "stb_image_write.h"
 #include "planar/planar.h"

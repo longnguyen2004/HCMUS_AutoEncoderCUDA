@@ -3,13 +3,14 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
-#include <layer.h>
+#include <layer/layer.h>
 #include <memory>
 #include <string>
 #include <vector>
 #include <random>
 #include <algorithm>
 #include <nvtx3/nvToolsExt.h>
+#include <helper/gpu_helper.h>
 
 using namespace std::literals;
 
