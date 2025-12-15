@@ -9,6 +9,7 @@
 #include <random>
 #include <algorithm>
 #include <nvtx3/nvToolsExt.h>
+#include <algorithm>
 
 using namespace std::literals;
 
