@@ -2,12 +2,12 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <filesystem>
 #include <layer/layer.h>
 #include <memory>
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <sys/stat.h>
 #include <helper/gpu_helper.h>
 
 #include "stb_image_write.h"
@@ -96,7 +96,7 @@ int main(int argc, char const *argv[])
     float total_loss = 0.0f;
     int img_count = 0;
     
-    mkdir("test_outputs", 0755);
+    std::filesystem::create_directory("test_outputs");
     
     for (const auto& image: test_images)
     {
