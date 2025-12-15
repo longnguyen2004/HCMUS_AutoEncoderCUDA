@@ -1,4 +1,5 @@
 #include "core/cifar_reader.h"
+#include "core/network.h"
 #include <fstream>
 #include <iostream>
 #include <cmath>
@@ -35,23 +36,14 @@ int main(int argc, char const *argv[])
     layers.push_back(input);
 
     // Encoder
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 256));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<MaxPool2DGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 128));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<MaxPool2DGPU>(*layers.rbegin()));
+    auto encoder = make_encoder_gpu(input);
     auto [x, y, c] = (*layers.rbegin())->dimension();
     std::cout << "Encoder output dimension: " << x << ' ' << y << ' ' << c << std::endl;
 
     // Decoder
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 128));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<UpSample2DGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 256));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<UpSample2DGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 3));
+    auto decoder = make_decoder_gpu(*encoder.rbegin());
+    layers.insert(layers.end(), encoder.begin(), encoder.end());
+    layers.insert(layers.end(), decoder.begin(), decoder.end());
 
     auto output = std::make_shared<OutputGPU>(*layers.rbegin());
     layers.push_back(output);
@@ -95,6 +87,15 @@ int main(int argc, char const *argv[])
     std::cout << "\nEvaluating on test set..." << std::endl;
     float total_loss = 0.0f;
     int img_count = 0;
+    // cuML features export
+    int enc_x = x, enc_y = y, enc_c = c;
+    const size_t feature_size = static_cast<size_t>(enc_x) * static_cast<size_t>(enc_y) * static_cast<size_t>(enc_c);
+    std::ofstream feat_out("features.csv", std::ios::binary);
+    std::ofstream label_out("labels.csv", std::ios::binary);
+    if (!feat_out || !label_out) {
+        std::cerr << "Failed to open output files features.csv or labels.csv" << std::endl;
+        return 1;
+    }
     
     std::filesystem::create_directory("test_outputs");
     
@@ -103,6 +104,23 @@ int main(int argc, char const *argv[])
         input->setImage(image.data);
         output->setReferenceImage(image.data);
         (*layers.rbegin())->forward();
+
+        // Grab encoder output features
+        const auto &encoder_layer = *encoder.rbegin();
+        const float *enc_dev = encoder_layer->output();
+        std::vector<float> enc_host(feature_size);
+        if (encoder_layer->deviceType() == DeviceType::GPU) {
+            CHECK(cudaMemcpy(enc_host.data(), enc_dev, feature_size * sizeof(float), cudaMemcpyDeviceToHost));
+        } else {
+            std::copy(enc_dev, enc_dev + feature_size, enc_host.begin());
+        }
+        // Write row to CSV (comma-separated), and label to labels.csv
+        for (size_t i = 0; i < feature_size; ++i) {
+            feat_out << enc_host[i];
+            if (i + 1 < feature_size) feat_out << ',';
+        }
+        feat_out << '\n';
+        label_out << static_cast<int>(image.label) << '\n';
         
         float current_loss = output->loss();
         total_loss += current_loss;
@@ -150,6 +168,7 @@ int main(int argc, char const *argv[])
     std::cout << "Total test images: " << img_count << std::endl;
     std::cout << "Average test loss: " << final_avg_loss << std::endl;
     std::cout << "First 20 reconstructed images saved to test_outputs/" << std::endl;
+    std::cout << "Features saved to features.csv and labels to labels.csv" << std::endl;
     std::cout << "========================================" << std::endl;
     
     cudaFree(params);
