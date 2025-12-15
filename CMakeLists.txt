@@ -32,6 +32,11 @@ add_executable(
     # Core
     src/core/optimizer.cpp
     src/core/optimizer.cu
+    src/core/network.cpp
+    src/core/network.cu
+
+    # SVM
+    src/svm/svm.cpp
 
     # Utils
     src/main.cpp
