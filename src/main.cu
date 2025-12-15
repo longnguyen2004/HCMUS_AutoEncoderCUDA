@@ -50,8 +50,10 @@ int main(int argc, char const *argv[])
     auto output = std::make_shared<OutputGPU>(*decoder.rbegin());
 
     std::vector<std::shared_ptr<LayerGPU>> layers;
+    layers.push_back(input);
     layers.insert(layers.end(), encoder.begin(), encoder.end());
     layers.insert(layers.end(), decoder.begin(), decoder.end());
+    layers.push_back(output);
 
     // Setting up params
     std::cout << "Initializing parameters...\n";
