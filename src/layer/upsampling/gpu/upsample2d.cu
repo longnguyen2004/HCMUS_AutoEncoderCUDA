@@ -1,5 +1,6 @@
 #include "../upsample2d.h"
 #include <constants.h>
+#include <helper/gpu_helper.h>
 
 UpSample2DGPU::UpSample2DGPU(std::shared_ptr<Layer> prev)
 {

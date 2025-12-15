@@ -3,6 +3,7 @@
 #include <core/optimizer.h>
 #include <cuda_runtime.h>
 #include <constants.h>
+#include <helper/gpu_helper.h>
 
 template <int kernel_width, bool flip_kernel>
 __device__ __forceinline__

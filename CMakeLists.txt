@@ -1,3 +1,5 @@
+set(CMAKE_CUDA_ARCHITECTURES 75)
+
 cmake_minimum_required(VERSION 3.10)
 project(autoencoder CXX CUDA)
 
@@ -13,9 +15,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(mdspan)
 
-add_executable(
-  AUTOENCODER_EXEC
+add_library(
+  AUTOENCODER_CORE
     # Layers
+    src/layer/base/layer_base.cu
     src/layer/input/cpu/input.cpp
     src/layer/input/gpu/input.cu
     src/layer/activation/cpu/relu.cpp
@@ -32,43 +35,28 @@ add_executable(
     # Core
     src/core/optimizer.cpp
     src/core/optimizer.cu
+    src/core/network.cpp
+    src/core/network.cu
 
     # Utils
-    src/main.cpp
     src/stbi.cpp
     src/stbi_write.cpp
 )
-set(CMAKE_CUDA_ARCHITECTURES 75)
-target_link_libraries(AUTOENCODER_EXEC PRIVATE mdspan)
-target_include_directories(AUTOENCODER_EXEC PRIVATE include src)
+target_link_libraries(AUTOENCODER_CORE PRIVATE mdspan)
+target_compile_features(AUTOENCODER_CORE PRIVATE cxx_std_20)
+target_include_directories(AUTOENCODER_CORE PUBLIC include src)
+
+add_executable(
+  AUTOENCODER_EXEC
+    src/main.cu
+)
+target_link_libraries(AUTOENCODER_EXEC PRIVATE AUTOENCODER_CORE)
 target_compile_features(AUTOENCODER_EXEC PRIVATE cxx_std_20)
 
 # Evaluation executable
 add_executable(
   AUTOENCODER_EVAL
-    # Layers
-    src/layer/input/cpu/input.cpp
-    src/layer/input/gpu/input.cu
-    src/layer/activation/cpu/relu.cpp
-    src/layer/activation/gpu/relu.cu
-    src/layer/conv/cpu/conv2d.cpp
-    src/layer/conv/gpu/conv2d.cu
-    src/layer/pooling/gpu/maxpool2d.cu
-    src/layer/pooling/cpu/maxpool2d.cpp
-    src/layer/upsampling/cpu/upsample2d.cpp
-    src/layer/upsampling/gpu/upsample2d.cu
-    src/layer/output/cpu/output.cpp
-    src/layer/output/gpu/output.cu
-
-    # Core
-    src/core/optimizer.cpp
-    src/core/optimizer.cu
-
-    # Utils
-    src/evaluate.cpp
-    src/stbi.cpp
-    src/stbi_write.cpp
+    src/evaluate.cu
 )
-target_link_libraries(AUTOENCODER_EVAL PRIVATE mdspan)
-target_include_directories(AUTOENCODER_EVAL PRIVATE include src)
+target_link_libraries(AUTOENCODER_EVAL PRIVATE AUTOENCODER_CORE)
 target_compile_features(AUTOENCODER_EVAL PRIVATE cxx_std_20)

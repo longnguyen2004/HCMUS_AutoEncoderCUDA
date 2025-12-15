@@ -1,8 +1,9 @@
 #include "core/cifar_reader.h"
+#include "core/network.h"
 #include <fstream>
 #include <iostream>
 #include <cmath>
-#include <layer.h>
+#include <layer/layer.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,6 +11,7 @@
 #include <algorithm>
 #include <nvtx3/nvToolsExt.h>
 #include <algorithm>
+#include <helper/gpu_helper.h>
 
 using namespace std::literals;
 
@@ -33,33 +35,23 @@ int main(int argc, char const *argv[])
     }
     std::cout << "Total images: " << images.size() << std::endl;
 
-    std::vector<std::shared_ptr<Layer>> layers;
     auto input = std::make_shared<InputGPU>();
-    layers.push_back(input);
 
     // Encoder
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 256));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<MaxPool2DGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 128));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<MaxPool2DGPU>(*layers.rbegin()));
-    auto [x, y, c] = (*layers.rbegin())->dimension();
+    auto encoder = make_encoder_gpu(input);
+    auto [x, y, c] = (*encoder.rbegin())->dimension();
     std::cout << "Encoder output dimension: " << x << ' ' << y << ' ' << c << std::endl;
 
     // Decoder
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 128));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<UpSample2DGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 256));
-    layers.push_back(std::make_shared<ReluGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<UpSample2DGPU>(*layers.rbegin()));
-    layers.push_back(std::make_shared<Conv2DGPU>(*layers.rbegin(), 3, 3));
-
-    auto output = std::make_shared<OutputGPU>(*layers.rbegin());
-    layers.push_back(output);
-    auto [x2, y2, c2] = (*layers.rbegin())->dimension();
+    auto decoder = make_decoder_gpu(*encoder.rbegin());
+    auto [x2, y2, c2] = (*decoder.rbegin())->dimension();
     std::cout << "Decoder output dimension: " << x2 << ' ' << y2 << ' ' << c2 << std::endl;
+
+    auto output = std::make_shared<OutputGPU>(*decoder.rbegin());
+
+    std::vector<std::shared_ptr<LayerGPU>> layers;
+    layers.insert(layers.end(), encoder.begin(), encoder.end());
+    layers.insert(layers.end(), decoder.begin(), decoder.end());
 
     // Setting up params
     std::cout << "Initializing parameters...\n";
@@ -116,12 +108,12 @@ int main(int argc, char const *argv[])
         {
             input->setImage(image->data);
             output->setReferenceImage(image->data);
-            (*layers.rbegin())->forward();
+            output->forward();
             
             float current_loss = output->loss();
             if (std::isnan(current_loss) || std::isinf(current_loss)) {
                 std::cerr << "NaN/Inf detected at epoch " << i << " image " << img_count << std::endl;
-                std::cerr << "Loss was: " << loss_sum / std::max(1, img_count % 100) << std::endl;
+                std::cerr << "Loss was: " << loss_sum / (std::max)(1, img_count % 100) << std::endl;
                 return 1;
             }
             
@@ -134,7 +126,7 @@ int main(int argc, char const *argv[])
                 loss_sum = 0.0f;
             }
             
-            (*layers.rbegin())->backward(learning_rate, nullptr);
+            output->backward(learning_rate, nullptr);
         }
 
         std::ofstream paramsOut("params_epoch_"s + std::to_string(i) + ".bin"s);

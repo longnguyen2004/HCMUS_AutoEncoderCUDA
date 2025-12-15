@@ -1,0 +1,6 @@
+#include "input/input.h"
+#include "activation/relu.h"
+#include "conv/conv2d.h"
+#include "pooling/maxpool2d.h"
+#include "upsampling/upsample2d.h"
+#include "output/output.h"

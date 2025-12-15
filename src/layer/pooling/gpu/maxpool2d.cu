@@ -1,6 +1,7 @@
 #include "../maxpool2d.h"
 #include <mdspan/mdspan.hpp>
 #include <constants.h>
+#include <helper/gpu_helper.h>
 
 MaxPool2DGPU::MaxPool2DGPU(std::shared_ptr<Layer> prev)
 {
