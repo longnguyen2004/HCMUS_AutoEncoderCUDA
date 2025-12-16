@@ -9,6 +9,8 @@ public:
   std::tuple<int, int, int> dimension() const;
   size_t paramCount() const override;
   void setParams(float* params) override;
+  size_t weightCount() const;
+  size_t biasCount() const;
 
 private:
   std::vector<float> m_grad_weights, m_grad_biases;

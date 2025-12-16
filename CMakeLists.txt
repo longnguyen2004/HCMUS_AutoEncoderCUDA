@@ -53,10 +53,26 @@ add_executable(
 target_link_libraries(AUTOENCODER_EXEC PRIVATE AUTOENCODER_CORE)
 target_compile_features(AUTOENCODER_EXEC PRIVATE cxx_std_20)
 
-# Evaluation executable
+# Training executable (CPU version)
+add_executable(
+  AUTOENCODER_EXEC_CPU
+    src/main_cpu.cpp
+)
+target_link_libraries(AUTOENCODER_EXEC_CPU PRIVATE AUTOENCODER_CORE)
+target_compile_features(AUTOENCODER_EXEC_CPU PRIVATE cxx_std_20)
+
+# Evaluation executable (GPU version)
 add_executable(
   AUTOENCODER_EVAL
     src/evaluate.cu
 )
 target_link_libraries(AUTOENCODER_EVAL PRIVATE AUTOENCODER_CORE)
 target_compile_features(AUTOENCODER_EVAL PRIVATE cxx_std_20)
+
+# Evaluation executable (CPU version)
+add_executable(
+  AUTOENCODER_EVAL_CPU
+    src/evaluate_cpu.cpp
+)
+target_link_libraries(AUTOENCODER_EVAL_CPU PRIVATE AUTOENCODER_CORE)
+target_compile_features(AUTOENCODER_EVAL_CPU PRIVATE cxx_std_20)
