@@ -115,21 +115,21 @@ __global__ void reduction_batched_kernel(float * __restrict__ out, const float *
     __syncthreads();
     
     #pragma unroll
-    for (int stride = blockDim.x / 2; stride > 32; stride >>= 1) {
+    for (int stride = blockDim.x / 2; stride >= 32; stride >>= 1) {
         if (threadIdx.x < stride)
             tile[threadIdx.x] += tile[threadIdx.x + stride];
         __syncthreads();
     }
     
-    // Warp-level reduction without __syncthreads()
+    // Warp-level reduction using shuffle
     if (threadIdx.x < 32) {
-        volatile float* vtile = tile;
-        if (blockDim.x >= 64) vtile[threadIdx.x] += vtile[threadIdx.x + 32];
-        if (blockDim.x >= 32) vtile[threadIdx.x] += vtile[threadIdx.x + 16];
-        vtile[threadIdx.x] += vtile[threadIdx.x + 8];
-        vtile[threadIdx.x] += vtile[threadIdx.x + 4];
-        vtile[threadIdx.x] += vtile[threadIdx.x + 2];
-        vtile[threadIdx.x] += vtile[threadIdx.x + 1];
+        float val = tile[threadIdx.x];
+        unsigned mask = __activemask();
+        for (int offset = 16; offset > 0; offset /= 2) {
+            float other = __shfl_down_sync(mask, val, offset);
+            if (threadIdx.x + offset < blockDim.x) val += other;
+        }
+        if (threadIdx.x == 0) tile[0] = val;
     }
     
     if (threadIdx.x == 0)

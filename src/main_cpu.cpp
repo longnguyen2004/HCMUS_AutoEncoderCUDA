@@ -9,11 +9,9 @@
 #include <vector>
 #include <random>
 #include <algorithm>
-#include <nvtx3/nvToolsExt.h>
-#include <algorithm>
-#include <helper/gpu_helper.h>
 
 using namespace std::literals;
+#include <chrono>
 
 int main(int argc, char const *argv[])
 {
@@ -35,21 +33,21 @@ int main(int argc, char const *argv[])
     }
     std::cout << "Total images: " << images.size() << std::endl;
 
-    auto input = std::make_shared<InputGPU>();
+    auto input = std::make_shared<InputCPU>();
 
     // Encoder
-    auto encoder = make_encoder_gpu(input);
+    auto encoder = make_encoder_cpu(input);
     auto [x, y, c] = (*encoder.rbegin())->dimension();
     std::cout << "Encoder output dimension: " << x << ' ' << y << ' ' << c << std::endl;
 
     // Decoder
-    auto decoder = make_decoder_gpu(*encoder.rbegin());
+    auto decoder = make_decoder_cpu(*encoder.rbegin());
     auto [x2, y2, c2] = (*decoder.rbegin())->dimension();
     std::cout << "Decoder output dimension: " << x2 << ' ' << y2 << ' ' << c2 << std::endl;
 
-    auto output = std::make_shared<OutputGPU>(*decoder.rbegin());
+    auto output = std::make_shared<OutputCPU>(*decoder.rbegin());
 
-    std::vector<std::shared_ptr<LayerGPU>> layers;
+    std::vector<std::shared_ptr<LayerCPU>> layers;
     layers.push_back(input);
     layers.insert(layers.end(), encoder.begin(), encoder.end());
     layers.insert(layers.end(), decoder.begin(), decoder.end());
@@ -69,7 +67,7 @@ int main(int argc, char const *argv[])
     for (size_t i = 0; i < layers.size(); ++i)
     {
         auto& layer = layers[i];
-        if (auto conv2d = std::dynamic_pointer_cast<Conv2DGPU>(layer); conv2d != nullptr)
+        if (auto conv2d = std::dynamic_pointer_cast<Conv2DCPU>(layer); conv2d != nullptr)
         {
             auto [prev_x, prev_y, prev_z] = layers[i - 1]->dimension();
             std::normal_distribution<float> dist(0.0f, std::sqrt(2.0f / (3 * 3 * prev_z)));
@@ -80,8 +78,10 @@ int main(int argc, char const *argv[])
         }
         params_idx += layer->paramCount();
     }
-    CHECK(cudaMalloc(reinterpret_cast<void**>(&params), paramsCount * sizeof(float)));
-    CHECK(cudaMemcpy(params, paramsVec.data(), paramsCount * sizeof(float), cudaMemcpyHostToDevice));
+    
+    // Allocate parameters in CPU memory
+    params = new float[paramsCount];
+    std::copy(paramsVec.begin(), paramsVec.end(), params);
 
     size_t idx = 0;
     for (const auto& layer: layers)
@@ -97,14 +97,21 @@ int main(int argc, char const *argv[])
     for (const auto &image: images)
         image_refs.push_back(&image);
     
+    constexpr float TRAIN_DATA_PERCENTAGE = 0.02f;
+    size_t train_size = static_cast<size_t>(image_refs.size() * TRAIN_DATA_PERCENTAGE);
+    if (train_size < image_refs.size()) {
+        image_refs.resize(train_size);
+        std::cout << "Training on " << train_size << " images (" << (TRAIN_DATA_PERCENTAGE * 100) << "%)" << std::endl;
+    }
+
     for (int i = 0; i < epochs; ++i)
     {
-        std::string msg = "Epoch " + std::to_string(i);
-        nvtxRangePushA(msg.c_str());
+        std::cout << "=== Epoch " << i << " ===" << std::endl;
         
         std::shuffle(image_refs.begin(), image_refs.end(), mt);
         int img_count = 0;
         float loss_sum = 0.0f;
+        auto start_time = std::chrono::high_resolution_clock::now();
         
         for (const auto& image: image_refs)
         {
@@ -116,6 +123,7 @@ int main(int argc, char const *argv[])
             if (std::isnan(current_loss) || std::isinf(current_loss)) {
                 std::cerr << "NaN/Inf detected at epoch " << i << " image " << img_count << std::endl;
                 std::cerr << "Loss was: " << loss_sum / (std::max)(1, img_count % 100) << std::endl;
+                delete[] params;
                 return 1;
             }
             
@@ -123,19 +131,26 @@ int main(int argc, char const *argv[])
             img_count++;
 
             if (img_count % 100 == 0) {
+                auto current_time = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<float> elapsed = current_time - start_time;
                 float avg_loss = loss_sum / 100.0f;
-                std::cout << "Epoch " << i << " Image " << img_count << " Avg Loss: " << avg_loss << std::endl;
+                std::cout << "Epoch " << i << " Image " << img_count << " Avg Loss: " << avg_loss << " Time: " << elapsed.count() << "s" << std::endl;
+                start_time = current_time;
                 loss_sum = 0.0f;
             }
             
             output->backward(learning_rate, nullptr);
         }
 
-        std::ofstream paramsOut("params_epoch_"s + std::to_string(i) + ".bin"s);
-        cudaMemcpy(paramsVec.data(), params, paramsVec.size() * sizeof(float), cudaMemcpyDeviceToHost);
+        std::ofstream paramsOut("params_epoch_"s + std::to_string(i) + ".bin"s, std::ios::binary);
+        std::copy(params, params + paramsCount, paramsVec.begin());
         paramsOut.write(reinterpret_cast<char*>(paramsVec.data()), paramsVec.size() * sizeof(float));
+        paramsOut.close();
         
-        nvtxRangePop();
+        std::cout << "Epoch " << i << " completed. Parameters saved." << std::endl;
     }
+    
+    delete[] params;
+    
     return 0;
 }

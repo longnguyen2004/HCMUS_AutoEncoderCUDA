@@ -73,9 +73,20 @@ std::tuple<int, int, int> Conv2DCPU::dimension() const
 }
 size_t Conv2DCPU::paramCount() const
 {
-    auto [prev_x, prev_y, prev_z] = m_prev->dimension();
-    return m_kernel_size * m_kernel_size * prev_z * m_filters + m_filters;
+    return weightCount() + biasCount();
 }
+
+size_t Conv2DCPU::weightCount() const
+{
+    const auto [_, __, prev_z] = m_prev->dimension();
+    return m_kernel_size * m_kernel_size * prev_z * m_filters;
+}
+
+size_t Conv2DCPU::biasCount() const
+{
+    return m_filters;
+}
+
 void Conv2DCPU::setParams(float *params)
 {
     auto [prev_x, prev_y, prev_z] = m_prev->dimension();
@@ -159,4 +170,12 @@ void Conv2DCPU::backward(float learning_rate, const float *grad_output)
 
     // Propagate gradients to previous layer
     m_prev->backward(learning_rate, this->grad_input.data());
+
+    // Update parameters
+    for (size_t i = 0; i < m_grad_weights.size(); ++i) {
+        m_weights[i] -= learning_rate * m_grad_weights[i];
+    }
+    for (size_t i = 0; i < m_grad_biases.size(); ++i) {
+        m_biases[i] -= learning_rate * m_grad_biases[i];
+    }
 }
