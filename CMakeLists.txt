@@ -76,3 +76,11 @@ add_executable(
 )
 target_link_libraries(AUTOENCODER_EVAL_CPU PRIVATE AUTOENCODER_CORE)
 target_compile_features(AUTOENCODER_EVAL_CPU PRIVATE cxx_std_20)
+
+# Training feature extraction (GPU version)
+add_executable(
+  EXTRACT_TRAIN
+    src/extract_train.cu
+)
+target_link_libraries(EXTRACT_TRAIN PRIVATE AUTOENCODER_CORE)
+target_compile_features(EXTRACT_TRAIN PRIVATE cxx_std_20)
