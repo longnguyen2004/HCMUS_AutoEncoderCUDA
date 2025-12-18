@@ -1,0 +1,376 @@
+^C[?2004l
+[?2004h[?2004l
+[?2004h(base) [01;32mminhnhat@minhnhat[00m:[01;34m~/Documents/HCMUS_AutoEncoderCUDA/build[00m$ cd build[K[K[K[K[K[K[K[K              ./AUTO ENCODER_EXEC_CPU  
+[?2004l
+Batch 1 size: 10000
+Batch 2 size: 10000
+Batch 3 size: 10000
+Batch 4 size: 10000
+Batch 5 size: 10000
+Total images: 50000
+Encoder output dimension: 8 8 128
+Decoder output dimension: 32 32 3
+Initializing parameters...
+Training on 1000 images (2%)
+=== Epoch 0 ===
+Epoch 0 Image 100 Avg Loss: 0.108245 Time: 59.0199s
+Epoch 0 Image 200 Avg Loss: 0.0543796 Time: 59.4253s
+Epoch 0 Image 300 Avg Loss: 0.0431498 Time: 59.5346s
+Epoch 0 Image 400 Avg Loss: 0.0399641 Time: 59.4334s
+Epoch 0 Image 500 Avg Loss: 0.0341104 Time: 59.4285s
+Epoch 0 Image 600 Avg Loss: 0.0322045 Time: 59.3687s
+Epoch 0 Image 700 Avg Loss: 0.030835 Time: 59.4199s
+Epoch 0 Image 800 Avg Loss: 0.029558 Time: 59.4053s
+Epoch 0 Image 900 Avg Loss: 0.0299571 Time: 59.4509s
+Epoch 0 Image 1000 Avg Loss: 0.0253982 Time: 59.4181s
+Epoch 0 completed. Parameters saved.
+=== Epoch 1 ===
+Epoch 1 Image 100 Avg Loss: 0.0267091 Time: 58.981s
+Epoch 1 Image 200 Avg Loss: 0.0269164 Time: 59.3485s
+Epoch 1 Image 300 Avg Loss: 0.024135 Time: 59.4006s
+Epoch 1 Image 400 Avg Loss: 0.0238165 Time: 59.4097s
+Epoch 1 Image 500 Avg Loss: 0.02352 Time: 59.415s
+Epoch 1 Image 600 Avg Loss: 0.0238833 Time: 59.4249s
+Epoch 1 Image 700 Avg Loss: 0.0237897 Time: 59.2945s
+Epoch 1 Image 800 Avg Loss: 0.0239683 Time: 59.3461s
+Epoch 1 Image 900 Avg Loss: 0.0242216 Time: 59.3779s
+Epoch 1 Image 1000 Avg Loss: 0.0222411 Time: 59.3788s
+Epoch 1 completed. Parameters saved.
+=== Epoch 2 ===
+Epoch 2 Image 100 Avg Loss: 0.0217049 Time: 58.9865s
+Epoch 2 Image 200 Avg Loss: 0.0212692 Time: 59.3996s
+Epoch 2 Image 300 Avg Loss: 0.0214502 Time: 59.4032s
+Epoch 2 Image 400 Avg Loss: 0.022098 Time: 59.3838s
+Epoch 2 Image 500 Avg Loss: 0.0214285 Time: 59.3582s
+Epoch 2 Image 600 Avg Loss: 0.0209291 Time: 59.374s
+Epoch 2 Image 700 Avg Loss: 0.0211799 Time: 59.4035s
+Epoch 2 Image 800 Avg Loss: 0.0191382 Time: 59.4071s
+Epoch 2 Image 900 Avg Loss: 0.0180702 Time: 59.3755s
+Epoch 2 Image 1000 Avg Loss: 0.0188302 Time: 59.3838s
+Epoch 2 completed. Parameters saved.
+=== Epoch 3 ===
+Epoch 3 Image 100 Avg Loss: 0.0193724 Time: 58.9838s
+Epoch 3 Image 200 Avg Loss: 0.0198545 Time: 59.3633s
+Epoch 3 Image 300 Avg Loss: 0.0181954 Time: 59.3596s
+Epoch 3 Image 400 Avg Loss: 0.0187311 Time: 59.3606s
+Epoch 3 Image 500 Avg Loss: 0.0181059 Time: 59.3546s
+Epoch 3 Image 600 Avg Loss: 0.0183767 Time: 59.3635s
+Epoch 3 Image 700 Avg Loss: 0.0174827 Time: 59.3867s
+Epoch 3 Image 800 Avg Loss: 0.0174702 Time: 59.4039s
+Epoch 3 Image 900 Avg Loss: 0.0193348 Time: 59.3618s
+Epoch 3 Image 1000 Avg Loss: 0.01846 Time: 59.3827s
+Epoch 3 completed. Parameters saved.
+=== Epoch 4 ===
+Epoch 4 Image 100 Avg Loss: 0.0186797 Time: 58.9682s
+Epoch 4 Image 200 Avg Loss: 0.0178515 Time: 59.3921s
+Epoch 4 Image 300 Avg Loss: 0.0175238 Time: 59.3553s
+Epoch 4 Image 400 Avg Loss: 0.0178905 Time: 59.3455s
+Epoch 4 Image 500 Avg Loss: 0.0169396 Time: 59.3762s
+Epoch 4 Image 600 Avg Loss: 0.0167752 Time: 59.4478s
+Epoch 4 Image 700 Avg Loss: 0.0162757 Time: 59.3329s
+Epoch 4 Image 800 Avg Loss: 0.0177064 Time: 59.4041s
+Epoch 4 Image 900 Avg Loss: 0.0158523 Time: 59.3986s
+Epoch 4 Image 1000 Avg Loss: 0.0159559 Time: 59.428s
+Epoch 4 completed. Parameters saved.
+=== Epoch 5 ===
+Epoch 5 Image 100 Avg Loss: 0.017454 Time: 59.0167s
+Epoch 5 Image 200 Avg Loss: 0.0178192 Time: 59.3826s
+Epoch 5 Image 300 Avg Loss: 0.0171508 Time: 59.3945s
+Epoch 5 Image 400 Avg Loss: 0.0144328 Time: 59.3861s
+Epoch 5 Image 500 Avg Loss: 0.0153416 Time: 59.441s
+Epoch 5 Image 600 Avg Loss: 0.0156632 Time: 59.3531s
+Epoch 5 Image 700 Avg Loss: 0.0164002 Time: 59.4753s
+Epoch 5 Image 800 Avg Loss: 0.01584 Time: 59.4125s
+Epoch 5 Image 900 Avg Loss: 0.0165316 Time: 59.4037s
+Epoch 5 Image 1000 Avg Loss: 0.0147587 Time: 59.3769s
+Epoch 5 completed. Parameters saved.
+=== Epoch 6 ===
+Epoch 6 Image 100 Avg Loss: 0.0160363 Time: 58.9496s
+Epoch 6 Image 200 Avg Loss: 0.0152765 Time: 59.3848s
+Epoch 6 Image 300 Avg Loss: 0.0164203 Time: 59.3987s
+Epoch 6 Image 400 Avg Loss: 0.0154649 Time: 59.3683s
+Epoch 6 Image 500 Avg Loss: 0.0154187 Time: 59.3702s
+Epoch 6 Image 600 Avg Loss: 0.0162003 Time: 59.3691s
+Epoch 6 Image 700 Avg Loss: 0.0149954 Time: 59.3879s
+Epoch 6 Image 800 Avg Loss: 0.0142669 Time: 59.3894s
+Epoch 6 Image 900 Avg Loss: 0.0144792 Time: 59.372s
+Epoch 6 Image 1000 Avg Loss: 0.0148423 Time: 59.3702s
+Epoch 6 completed. Parameters saved.
+=== Epoch 7 ===
+Epoch 7 Image 100 Avg Loss: 0.0149426 Time: 58.9494s
+Epoch 7 Image 200 Avg Loss: 0.0151939 Time: 59.3357s
+Epoch 7 Image 300 Avg Loss: 0.0155623 Time: 59.3837s
+Epoch 7 Image 400 Avg Loss: 0.0155962 Time: 59.3763s
+Epoch 7 Image 500 Avg Loss: 0.0143591 Time: 59.4038s
+Epoch 7 Image 600 Avg Loss: 0.0153236 Time: 59.4042s
+Epoch 7 Image 700 Avg Loss: 0.0143137 Time: 59.3597s
+Epoch 7 Image 800 Avg Loss: 0.0142384 Time: 59.399s
+Epoch 7 Image 900 Avg Loss: 0.0139178 Time: 59.3645s
+Epoch 7 Image 1000 Avg Loss: 0.0137342 Time: 59.359s
+Epoch 7 completed. Parameters saved.
+=== Epoch 8 ===
+Epoch 8 Image 100 Avg Loss: 0.0143258 Time: 58.9878s
+Epoch 8 Image 200 Avg Loss: 0.0141241 Time: 59.3855s
+Epoch 8 Image 300 Avg Loss: 0.0147345 Time: 59.3876s
+Epoch 8 Image 400 Avg Loss: 0.0143187 Time: 59.4038s
+Epoch 8 Image 500 Avg Loss: 0.014404 Time: 59.4367s
+Epoch 8 Image 600 Avg Loss: 0.0133433 Time: 59.3846s
+Epoch 8 Image 700 Avg Loss: 0.0135343 Time: 59.3864s
+Epoch 8 Image 800 Avg Loss: 0.0147768 Time: 59.3875s
+Epoch 8 Image 900 Avg Loss: 0.0136653 Time: 59.4255s
+Epoch 8 Image 1000 Avg Loss: 0.0146467 Time: 59.4064s
+Epoch 8 completed. Parameters saved.
+=== Epoch 9 ===
+Epoch 9 Image 100 Avg Loss: 0.0141819 Time: 58.9676s
+Epoch 9 Image 200 Avg Loss: 0.0139994 Time: 59.3907s
+Epoch 9 Image 300 Avg Loss: 0.0141543 Time: 59.3764s
+Epoch 9 Image 400 Avg Loss: 0.0138906 Time: 59.4193s
+Epoch 9 Image 500 Avg Loss: 0.0136579 Time: 59.4103s
+Epoch 9 Image 600 Avg Loss: 0.0118923 Time: 59.3704s
+Epoch 9 Image 700 Avg Loss: 0.0140953 Time: 59.3763s
+Epoch 9 Image 800 Avg Loss: 0.0143842 Time: 59.3987s
+Epoch 9 Image 900 Avg Loss: 0.0135128 Time: 59.3999s
+Epoch 9 Image 1000 Avg Loss: 0.0136053 Time: 59.4191s
+Epoch 9 completed. Parameters saved.
+=== Epoch 10 ===
+Epoch 10 Image 100 Avg Loss: 0.0123467 Time: 58.9944s
+Epoch 10 Image 200 Avg Loss: 0.0138774 Time: 59.389s
+Epoch 10 Image 300 Avg Loss: 0.0141021 Time: 59.3815s
+Epoch 10 Image 400 Avg Loss: 0.0147648 Time: 59.4036s
+Epoch 10 Image 500 Avg Loss: 0.013291 Time: 59.411s
+Epoch 10 Image 600 Avg Loss: 0.0130426 Time: 59.3706s
+Epoch 10 Image 700 Avg Loss: 0.0136252 Time: 59.3375s
+Epoch 10 Image 800 Avg Loss: 0.0127328 Time: 59.4172s
+Epoch 10 Image 900 Avg Loss: 0.0129553 Time: 59.3296s
+Epoch 10 Image 1000 Avg Loss: 0.0127901 Time: 59.376s
+Epoch 10 completed. Parameters saved.
+=== Epoch 11 ===
+Epoch 11 Image 100 Avg Loss: 0.0127453 Time: 58.8973s
+Epoch 11 Image 200 Avg Loss: 0.0129257 Time: 59.3468s
+Epoch 11 Image 300 Avg Loss: 0.0129171 Time: 59.3904s
+Epoch 11 Image 400 Avg Loss: 0.0141257 Time: 59.3983s
+Epoch 11 Image 500 Avg Loss: 0.0124029 Time: 59.4091s
+Epoch 11 Image 600 Avg Loss: 0.0132388 Time: 59.4202s
+Epoch 11 Image 700 Avg Loss: 0.013203 Time: 59.4255s
+Epoch 11 Image 800 Avg Loss: 0.0133623 Time: 59.3936s
+Epoch 11 Image 900 Avg Loss: 0.0114824 Time: 59.3409s
+Epoch 11 Image 1000 Avg Loss: 0.0136533 Time: 59.3831s
+Epoch 11 completed. Parameters saved.
+=== Epoch 12 ===
+Epoch 12 Image 100 Avg Loss: 0.012751 Time: 58.9936s
+Epoch 12 Image 200 Avg Loss: 0.0134973 Time: 59.3801s
+Epoch 12 Image 300 Avg Loss: 0.0121789 Time: 59.3896s
+Epoch 12 Image 400 Avg Loss: 0.0122288 Time: 59.3821s
+Epoch 12 Image 500 Avg Loss: 0.0124109 Time: 59.3771s
+Epoch 12 Image 600 Avg Loss: 0.0130862 Time: 59.4117s
+Epoch 12 Image 700 Avg Loss: 0.0137262 Time: 59.3391s
+Epoch 12 Image 800 Avg Loss: 0.0129963 Time: 59.3846s
+Epoch 12 Image 900 Avg Loss: 0.0124243 Time: 59.3638s
+Epoch 12 Image 1000 Avg Loss: 0.0117615 Time: 59.4125s
+Epoch 12 completed. Parameters saved.
+=== Epoch 13 ===
+Epoch 13 Image 100 Avg Loss: 0.0125513 Time: 59.0056s
+Epoch 13 Image 200 Avg Loss: 0.0115961 Time: 59.3488s
+Epoch 13 Image 300 Avg Loss: 0.0126636 Time: 59.3903s
+Epoch 13 Image 400 Avg Loss: 0.011978 Time: 59.3801s
+Epoch 13 Image 500 Avg Loss: 0.0131587 Time: 59.4017s
+Epoch 13 Image 600 Avg Loss: 0.0128195 Time: 59.4143s
+Epoch 13 Image 700 Avg Loss: 0.0132445 Time: 59.3768s
+Epoch 13 Image 800 Avg Loss: 0.0119273 Time: 59.3859s
+Epoch 13 Image 900 Avg Loss: 0.0116629 Time: 59.4193s
+Epoch 13 Image 1000 Avg Loss: 0.0126837 Time: 59.4s
+Epoch 13 completed. Parameters saved.
+=== Epoch 14 ===
+Epoch 14 Image 100 Avg Loss: 0.0127993 Time: 58.9723s
+Epoch 14 Image 200 Avg Loss: 0.0121523 Time: 59.4016s
+Epoch 14 Image 300 Avg Loss: 0.0128757 Time: 59.3448s
+Epoch 14 Image 400 Avg Loss: 0.0115957 Time: 59.3852s
+Epoch 14 Image 500 Avg Loss: 0.0123536 Time: 59.4115s
+Epoch 14 Image 600 Avg Loss: 0.012776 Time: 59.3958s
+Epoch 14 Image 700 Avg Loss: 0.0119311 Time: 59.4038s
+Epoch 14 Image 800 Avg Loss: 0.0125155 Time: 59.3805s
+Epoch 14 Image 900 Avg Loss: 0.0115562 Time: 59.3922s
+Epoch 14 Image 1000 Avg Loss: 0.0112368 Time: 59.3782s
+Epoch 14 completed. Parameters saved.
+=== Epoch 15 ===
+Epoch 15 Image 100 Avg Loss: 0.0110717 Time: 58.9564s
+Epoch 15 Image 200 Avg Loss: 0.0121383 Time: 59.3831s
+Epoch 15 Image 300 Avg Loss: 0.0133916 Time: 59.3778s
+Epoch 15 Image 400 Avg Loss: 0.0106982 Time: 59.3754s
+Epoch 15 Image 500 Avg Loss: 0.0123899 Time: 59.3745s
+Epoch 15 Image 600 Avg Loss: 0.0128765 Time: 59.3446s
+Epoch 15 Image 700 Avg Loss: 0.0114351 Time: 59.4204s
+Epoch 15 Image 800 Avg Loss: 0.0112965 Time: 59.3685s
+Epoch 15 Image 900 Avg Loss: 0.0125766 Time: 59.3606s
+Epoch 15 Image 1000 Avg Loss: 0.011676 Time: 59.3585s
+Epoch 15 completed. Parameters saved.
+=== Epoch 16 ===
+Epoch 16 Image 100 Avg Loss: 0.0125625 Time: 59.0116s
+Epoch 16 Image 200 Avg Loss: 0.0114669 Time: 59.4124s
+Epoch 16 Image 300 Avg Loss: 0.0115925 Time: 59.418s
+Epoch 16 Image 400 Avg Loss: 0.0115777 Time: 59.4166s
+Epoch 16 Image 500 Avg Loss: 0.0114914 Time: 59.3784s
+Epoch 16 Image 600 Avg Loss: 0.0116141 Time: 59.3805s
+Epoch 16 Image 700 Avg Loss: 0.0118025 Time: 59.3742s
+Epoch 16 Image 800 Avg Loss: 0.0117832 Time: 59.4247s
+Epoch 16 Image 900 Avg Loss: 0.0111471 Time: 59.4088s
+Epoch 16 Image 1000 Avg Loss: 0.0124907 Time: 59.4868s
+Epoch 16 completed. Parameters saved.
+=== Epoch 17 ===
+Epoch 17 Image 100 Avg Loss: 0.0116685 Time: 59.0319s
+Epoch 17 Image 200 Avg Loss: 0.0121647 Time: 59.3809s
+Epoch 17 Image 300 Avg Loss: 0.0114361 Time: 59.468s
+Epoch 17 Image 400 Avg Loss: 0.0116205 Time: 59.3651s
+Epoch 17 Image 500 Avg Loss: 0.0108935 Time: 59.4046s
+Epoch 17 Image 600 Avg Loss: 0.0115273 Time: 59.3986s
+Epoch 17 Image 700 Avg Loss: 0.0122388 Time: 59.3987s
+Epoch 17 Image 800 Avg Loss: 0.0109135 Time: 59.4366s
+Epoch 17 Image 900 Avg Loss: 0.0112563 Time: 59.3882s
+Epoch 17 Image 1000 Avg Loss: 0.0119078 Time: 59.3827s
+Epoch 17 completed. Parameters saved.
+=== Epoch 18 ===
+Epoch 18 Image 100 Avg Loss: 0.0113951 Time: 58.9572s
+Epoch 18 Image 200 Avg Loss: 0.0122075 Time: 59.3477s
+Epoch 18 Image 300 Avg Loss: 0.0108459 Time: 59.4056s
+Epoch 18 Image 400 Avg Loss: 0.0119086 Time: 59.397s
+Epoch 18 Image 500 Avg Loss: 0.0117451 Time: 59.3657s
+Epoch 18 Image 600 Avg Loss: 0.011551 Time: 59.3689s
+Epoch 18 Image 700 Avg Loss: 0.0112618 Time: 59.3891s
+Epoch 18 Image 800 Avg Loss: 0.0104606 Time: 59.3775s
+Epoch 18 Image 900 Avg Loss: 0.0113748 Time: 59.3653s
+Epoch 18 Image 1000 Avg Loss: 0.0110828 Time: 59.3957s
+Epoch 18 completed. Parameters saved.
+=== Epoch 19 ===
+Epoch 19 Image 100 Avg Loss: 0.0115052 Time: 58.9742s
+Epoch 19 Image 200 Avg Loss: 0.0107359 Time: 59.4079s
+Epoch 19 Image 300 Avg Loss: 0.0113179 Time: 59.4163s
+Epoch 19 Image 400 Avg Loss: 0.0111429 Time: 59.3765s
+Epoch 19 Image 500 Avg Loss: 0.0108508 Time: 59.4351s
+Epoch 19 Image 600 Avg Loss: 0.011174 Time: 59.3584s
+Epoch 19 Image 700 Avg Loss: 0.0123461 Time: 59.4364s
+Epoch 19 Image 800 Avg Loss: 0.0107016 Time: 59.4359s
+Epoch 19 Image 900 Avg Loss: 0.010981 Time: 59.4426s
+Epoch 19 Image 1000 Avg Loss: 0.0114512 Time: 59.3783s
+Epoch 19 completed. Parameters saved.
+[?2004h(base) [01;32mminhnhat@minhnhat[00m:[01;34m~/Documents/HCMUS_AutoEncoderCUDA/build[00m$ 
+[K
+(base) [01;32mminhnhat@minhnhat[00m:[01;34m~/Documents/HCMUS_AutoEncoderCUDA/build[00m$ ./AUTO ENCODER_EVAL _CPU
+[?2004l
+Loading CIFAR-10 test set...
+Test set size: 10000
+Encoder output dimension: 32 32 3
+Decoder output dimension: 32 32 3
+Loading parameters from params_epoch_1.bin...
+Total parameters: 751875
+Parameters loaded successfully.
+
+Evaluating on test set...
+Processed 100 images, Average Loss: 0.0107926
+Processed 200 images, Average Loss: 0.0109758
+Processed 300 images, Average Loss: 0.0112486
+Processed 400 images, Average Loss: 0.011095
+Processed 500 images, Average Loss: 0.0109381
+Processed 600 images, Average Loss: 0.0108375
+Processed 700 images, Average Loss: 0.0108644
+Processed 800 images, Average Loss: 0.0107948
+Processed 900 images, Average Loss: 0.0108131
+Processed 1000 images, Average Loss: 0.0108261
+Processed 1100 images, Average Loss: 0.0108379
+Processed 1200 images, Average Loss: 0.0107943
+Processed 1300 images, Average Loss: 0.0108493
+Processed 1400 images, Average Loss: 0.0108375
+Processed 1500 images, Average Loss: 0.0109063
+Processed 1600 images, Average Loss: 0.0108571
+Processed 1700 images, Average Loss: 0.0108847
+Processed 1800 images, Average Loss: 0.0108763
+Processed 1900 images, Average Loss: 0.0108547
+Processed 2000 images, Average Loss: 0.0108808
+Processed 2100 images, Average Loss: 0.0108518
+Processed 2200 images, Average Loss: 0.0108468
+Processed 2300 images, Average Loss: 0.010849
+Processed 2400 images, Average Loss: 0.0108421
+Processed 2500 images, Average Loss: 0.0108231
+Processed 2600 images, Average Loss: 0.0108057
+Processed 2700 images, Average Loss: 0.0107832
+Processed 2800 images, Average Loss: 0.0108335
+Processed 2900 images, Average Loss: 0.0108454
+Processed 3000 images, Average Loss: 0.0108471
+Processed 3100 images, Average Loss: 0.0108672
+Processed 3200 images, Average Loss: 0.0108817
+Processed 3300 images, Average Loss: 0.0109077
+Processed 3400 images, Average Loss: 0.0109183
+Processed 3500 images, Average Loss: 0.010914
+Processed 3600 images, Average Loss: 0.0109159
+Processed 3700 images, Average Loss: 0.0109256
+Processed 3800 images, Average Loss: 0.0109371
+Processed 3900 images, Average Loss: 0.0109518
+Processed 4000 images, Average Loss: 0.0109529
+Processed 4100 images, Average Loss: 0.0109514
+Processed 4200 images, Average Loss: 0.0109602
+Processed 4300 images, Average Loss: 0.0109608
+Processed 4400 images, Average Loss: 0.0109677
+Processed 4500 images, Average Loss: 0.0109993
+Processed 4600 images, Average Loss: 0.0109849
+Processed 4700 images, Average Loss: 0.0109753
+Processed 4800 images, Average Loss: 0.0110076
+Processed 4900 images, Average Loss: 0.0110168
+Processed 5000 images, Average Loss: 0.0110243
+Processed 5100 images, Average Loss: 0.0110182
+Processed 5200 images, Average Loss: 0.0110024
+Processed 5300 images, Average Loss: 0.0109977
+Processed 5400 images, Average Loss: 0.0110013
+Processed 5500 images, Average Loss: 0.0110195
+Processed 5600 images, Average Loss: 0.0110055
+Processed 5700 images, Average Loss: 0.0109987
+Processed 5800 images, Average Loss: 0.0109843
+Processed 5900 images, Average Loss: 0.0109788
+Processed 6000 images, Average Loss: 0.010981
+Processed 6100 images, Average Loss: 0.010968
+Processed 6200 images, Average Loss: 0.0109723
+Processed 6300 images, Average Loss: 0.0109656
+Processed 6400 images, Average Loss: 0.0109695
+Processed 6500 images, Average Loss: 0.0109592
+Processed 6600 images, Average Loss: 0.0109527
+Processed 6700 images, Average Loss: 0.010936
+Processed 6800 images, Average Loss: 0.0109403
+Processed 6900 images, Average Loss: 0.0109415
+Processed 7000 images, Average Loss: 0.0109417
+Processed 7100 images, Average Loss: 0.0109326
+Processed 7200 images, Average Loss: 0.0109286
+Processed 7300 images, Average Loss: 0.010921
+Processed 7400 images, Average Loss: 0.010918
+Processed 7500 images, Average Loss: 0.0109297
+Processed 7600 images, Average Loss: 0.010929
+Processed 7700 images, Average Loss: 0.0109295
+Processed 7800 images, Average Loss: 0.0109296
+Processed 7900 images, Average Loss: 0.0109336
+Processed 8000 images, Average Loss: 0.0109263
+Processed 8100 images, Average Loss: 0.0109306
+Processed 8200 images, Average Loss: 0.0109329
+Processed 8300 images, Average Loss: 0.0109352
+Processed 8400 images, Average Loss: 0.0109252
+Processed 8500 images, Average Loss: 0.0109172
+Processed 8600 images, Average Loss: 0.0109358
+Processed 8700 images, Average Loss: 0.0109315
+Processed 8800 images, Average Loss: 0.0109251
+Processed 8900 images, Average Loss: 0.0109213
+Processed 9000 images, Average Loss: 0.0109178
+Processed 9100 images, Average Loss: 0.0109137
+Processed 9200 images, Average Loss: 0.010903
+Processed 9300 images, Average Loss: 0.0109083
+Processed 9400 images, Average Loss: 0.0109064
+Processed 9500 images, Average Loss: 0.0109083
+Processed 9600 images, Average Loss: 0.0109107
+Processed 9700 images, Average Loss: 0.0109098
+Processed 9800 images, Average Loss: 0.010911
+Processed 9900 images, Average Loss: 0.0109093
+Processed 10000 images, Average Loss: 0.010914
+
+========================================
+Evaluation Complete!
+Total test images: 10000
+Average test loss: 0.010914
+First 20 reconstructed images saved to test_outputs/
+Features saved to features.csv and labels to labels.csv
+========================================
+[?2004h(base) [01;32mminhnhat@minhnhat[00m:[01;34m~/Documents/HCMUS_AutoEncoderCUDA/build[00m$ 
