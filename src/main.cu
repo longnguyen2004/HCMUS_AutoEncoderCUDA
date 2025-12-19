@@ -97,14 +97,19 @@ int main(int argc, char const *argv[])
     for (const auto &image: images)
         image_refs.push_back(&image);
     
+    GPUTimer timer;
+    
     for (int i = 0; i < epochs; ++i)
     {
+        std::cout << "=== Epoch " << i << " ===" << std::endl;
+        
         std::string msg = "Epoch " + std::to_string(i);
         nvtxRangePushA(msg.c_str());
         
         std::shuffle(image_refs.begin(), image_refs.end(), mt);
         int img_count = 0;
         float loss_sum = 0.0f;
+        timer.Start();
         
         for (const auto& image: image_refs)
         {
@@ -123,17 +128,23 @@ int main(int argc, char const *argv[])
             img_count++;
 
             if (img_count % 100 == 0) {
+                timer.Stop();
+                float elapsed = timer.Elapsed() / 1000.0f; // Convert ms to seconds
                 float avg_loss = loss_sum / 100.0f;
-                std::cout << "Epoch " << i << " Image " << img_count << " Avg Loss: " << avg_loss << std::endl;
+                std::cout << "Epoch " << i << " Image " << img_count << " Avg Loss: " << avg_loss << " Time: " << elapsed << "s" << std::endl;
                 loss_sum = 0.0f;
+                timer.Start();
             }
             
             output->backward(learning_rate, nullptr);
         }
 
-        std::ofstream paramsOut("params_epoch_"s + std::to_string(i) + ".bin"s);
+        std::ofstream paramsOut("params_epoch_"s + std::to_string(i) + ".bin"s, std::ios::binary);
         cudaMemcpy(paramsVec.data(), params, paramsVec.size() * sizeof(float), cudaMemcpyDeviceToHost);
         paramsOut.write(reinterpret_cast<char*>(paramsVec.data()), paramsVec.size() * sizeof(float));
+        paramsOut.close();
+        
+        std::cout << "Epoch " << i << " completed. Parameters saved." << std::endl;
         
         nvtxRangePop();
     }
