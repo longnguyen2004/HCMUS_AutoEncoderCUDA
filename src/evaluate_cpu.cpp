@@ -17,10 +17,18 @@ using namespace std::literals;
 
 int main(int argc, char const *argv[])
 {
+    // Parse command line arguments
+    std::string dataset_dir = "../dataset/cifar-10-batches-bin";
+    if (argc > 1) {
+        dataset_dir = argv[1];
+    }
+
+    std::cout << "Using dataset directory: " << dataset_dir << std::endl;
+
     // Load test set
     std::cout << "Loading CIFAR-10 test set..." << std::endl;
     std::vector<Image> test_images;
-    std::string test_path = "../dataset/cifar-10-batches-bin/test_batch.bin";
+    std::string test_path = dataset_dir + "/test_batch.bin";
     std::ifstream test_file(test_path, std::ios_base::binary);
     if (!test_file) {
         std::cerr << "Error opening test file: " << test_path << std::endl;

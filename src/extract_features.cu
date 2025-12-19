@@ -18,11 +18,18 @@ using namespace std::literals;
 
 int main(int argc, char const *argv[])
 {
+    // Parse command line arguments
+    std::string dataset_dir = "../dataset/cifar-10-batches-bin";
+    if (argc > 1) {
+        dataset_dir = argv[1];
+    }
+
+    std::cout << "Using dataset directory: " << dataset_dir << std::endl;
     std::cout << "Loading CIFAR-10 training set..." << std::endl;
     std::vector<Image> train_images;
     
     for (int batch = 1; batch <= 5; batch++) {
-        std::string train_path = "../dataset/cifar-10-batches-bin/data_batch_" + std::to_string(batch) + ".bin";
+        std::string train_path = dataset_dir + "/data_batch_" + std::to_string(batch) + ".bin";
         std::ifstream train_file(train_path, std::ios_base::binary);
         if (!train_file) {
             std::cerr << "Error opening train file: " << train_path << std::endl;
@@ -36,7 +43,7 @@ int main(int argc, char const *argv[])
 
     std::cout << "Loading CIFAR-10 test set..." << std::endl;
     std::vector<Image> test_images;
-    std::string test_path = "../dataset/cifar-10-batches-bin/test_batch.bin";
+    std::string test_path = dataset_dir + "/test_batch.bin";
     std::ifstream test_file(test_path, std::ios_base::binary);
     if (!test_file) {
         std::cerr << "Error opening test file: " << test_path << std::endl;
