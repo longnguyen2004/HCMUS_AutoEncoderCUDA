@@ -5,6 +5,261 @@
 #include <constants.h>
 #include <helper/gpu_helper.h>
 
+#define USE_IM2COL 1
+
+template <int KERNEL_SIZE, int TILE_SIZE, int CHANNELS_PER_BLOCK, bool BACKWARD_MODE>
+__global__ void simple_conv_unified_kernel(
+    float* __restrict__ output,
+    const float* __restrict__ input,
+    const float* __restrict__ weights,
+    const float* __restrict__ biases,
+    const int width,
+    const int height,
+    const int in_channels,
+    const int out_channels)
+{
+    // Shared memory for input tile (with padding) and weights
+    __shared__ float s_input[CHANNELS_PER_BLOCK][TILE_SIZE + KERNEL_SIZE - 1][TILE_SIZE + KERNEL_SIZE - 1];
+    __shared__ float s_weights[CHANNELS_PER_BLOCK][KERNEL_SIZE][KERNEL_SIZE];
+    
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+    const int out_x = blockIdx.x * TILE_SIZE + tx;
+    const int out_y = blockIdx.y * TILE_SIZE + ty;
+    const int out_c = blockIdx.z;
+
+    const bool valid_output = (out_x < width && out_y < height && out_c < out_channels);
+    
+    const int pad = KERNEL_SIZE / 2;
+    float sum = 0.0f;
+    
+    // Loop over input channels in batches
+    for (int ic_base = 0; ic_base < in_channels; ic_base += CHANNELS_PER_BLOCK) {
+        const int channels_in_batch = min(CHANNELS_PER_BLOCK, in_channels - ic_base);
+        
+        // Load input tile into shared memory - ALL threads participate
+        for (int c = 0; c < channels_in_batch; ++c) {
+            const int ic = ic_base + c;
+            
+            // Load main tile - each thread loads its corresponding position
+            {
+                const int in_x = blockIdx.x * TILE_SIZE + tx - pad;
+                const int in_y = blockIdx.y * TILE_SIZE + ty - pad;
+                
+                if (in_x >= 0 && in_x < width && in_y >= 0 && in_y < height) {
+                    s_input[c][ty][tx] = input[ic * (height * width) + in_y * width + in_x];
+                } else {
+                    s_input[c][ty][tx] = 0.0f;
+                }
+            }
+            
+            // Load right halo region (only threads with tx < KERNEL_SIZE - 1)
+            if (tx < KERNEL_SIZE - 1) {
+                const int in_x = blockIdx.x * TILE_SIZE + TILE_SIZE + tx - pad;
+                const int in_y = blockIdx.y * TILE_SIZE + ty - pad;
+                if (in_x >= 0 && in_x < width && in_y >= 0 && in_y < height) {
+                    s_input[c][ty][TILE_SIZE + tx] = input[ic * (height * width) + in_y * width + in_x];
+                } else {
+                    s_input[c][ty][TILE_SIZE + tx] = 0.0f;
+                }
+            }
+            
+            // Load bottom halo region (only threads with ty < KERNEL_SIZE - 1)
+            if (ty < KERNEL_SIZE - 1) {
+                const int in_x = blockIdx.x * TILE_SIZE + tx - pad;
+                const int in_y = blockIdx.y * TILE_SIZE + TILE_SIZE + ty - pad;
+                if (in_x >= 0 && in_x < width && in_y >= 0 && in_y < height) {
+                    s_input[c][TILE_SIZE + ty][tx] = input[ic * (height * width) + in_y * width + in_x];
+                } else {
+                    s_input[c][TILE_SIZE + ty][tx] = 0.0f;
+                }
+            }
+            
+            // Load bottom-right corner halo region
+            if (tx < KERNEL_SIZE - 1 && ty < KERNEL_SIZE - 1) {
+                const int in_x = blockIdx.x * TILE_SIZE + TILE_SIZE + tx - pad;
+                const int in_y = blockIdx.y * TILE_SIZE + TILE_SIZE + ty - pad;
+                if (in_x >= 0 && in_x < width && in_y >= 0 && in_y < height) {
+                    s_input[c][TILE_SIZE + ty][TILE_SIZE + tx] = input[ic * (height * width) + in_y * width + in_x];
+                } else {
+                    s_input[c][TILE_SIZE + ty][TILE_SIZE + tx] = 0.0f;
+                }
+            }
+        }
+        
+        // Load weights into shared memory
+        if (tx < KERNEL_SIZE && ty < KERNEL_SIZE) {
+            for (int c = 0; c < channels_in_batch; ++c) {
+                const int ic = ic_base + c;
+                if constexpr (BACKWARD_MODE) {
+                    // For backward pass: out_c is the input channel, ic is the output channel
+                    const int ky_flip = KERNEL_SIZE - 1 - ty;
+                    const int kx_flip = KERNEL_SIZE - 1 - tx;
+                    const int weight_idx = ((ic * out_channels + out_c) * KERNEL_SIZE + ky_flip) * KERNEL_SIZE + kx_flip;
+                    s_weights[c][ty][tx] = weights[weight_idx];
+                } else {
+                    // Normal weight indexing for forward pass
+                    const int weight_idx = ((out_c * in_channels + ic) * KERNEL_SIZE + ty) * KERNEL_SIZE + tx;
+                    s_weights[c][ty][tx] = weights[weight_idx];
+                }
+            }
+        }
+        
+        __syncthreads();
+        
+        // Compute convolution for this batch of channels
+        if (valid_output) {
+            for (int c = 0; c < channels_in_batch; ++c) {
+                #pragma unroll
+                for (int ky = 0; ky < KERNEL_SIZE; ++ky) {
+                    #pragma unroll
+                    for (int kx = 0; kx < KERNEL_SIZE; ++kx) {
+                        sum += s_input[c][ty + ky][tx + kx] * s_weights[c][ky][kx];
+                    }
+                }
+            }
+        }
+        
+        __syncthreads();
+    }
+    
+    // Add bias and write output
+    if (valid_output) {
+        if constexpr (!BACKWARD_MODE) {
+            sum += biases[out_c];
+        }
+        output[out_c * (height * width) + out_y * width + out_x] = sum;
+    }
+}
+
+// Backward convolution for gradient w.r.t. weights
+template <int KERNEL_SIZE, int TILE_SIZE>
+__global__ void simple_conv_backward_weights_kernel(
+    float* __restrict__ grad_weights,
+    const float* __restrict__ grad_output,
+    const float* __restrict__ input,
+    const int width,
+    const int height,
+    const int in_channels,
+    const int out_channels)
+{
+    // Each block computes one weight element across all spatial positions
+    const int out_c = blockIdx.z / in_channels;
+    const int in_c = blockIdx.z % in_channels;
+    const int ky = blockIdx.y;
+    const int kx = blockIdx.x;
+    
+    if (out_c >= out_channels || in_c >= in_channels || ky >= KERNEL_SIZE || kx >= KERNEL_SIZE)
+        return;
+    
+    __shared__ float s_partial[TILE_SIZE * TILE_SIZE];
+    
+    const int tid = threadIdx.y * TILE_SIZE + threadIdx.x;
+    const int num_threads = TILE_SIZE * TILE_SIZE;
+    const int pad = KERNEL_SIZE / 2;
+    const int num_pixels = width * height;
+    
+    float thread_sum = 0.0f;
+    
+    // Each thread processes multiple pixels
+    for (int pixel = tid; pixel < num_pixels; pixel += num_threads) {
+        const int out_x = pixel % width;
+        const int out_y = pixel / width;
+        
+        // Corresponding input position
+        const int in_x = out_x + kx - pad;
+        const int in_y = out_y + ky - pad;
+        
+        float grad_val = grad_output[out_c * num_pixels + pixel];
+        float input_val = 0.0f;
+        
+        if (in_x >= 0 && in_x < width && in_y >= 0 && in_y < height) {
+            input_val = input[in_c * num_pixels + in_y * width + in_x];
+        }
+        
+        thread_sum += input_val * grad_val;
+    }
+    
+    s_partial[tid] = thread_sum;
+    __syncthreads();
+    
+    // Tree reduction in shared memory
+    for (int stride = num_threads / 2; stride > 32; stride >>= 1) {
+        if (tid < stride) {
+            s_partial[tid] += s_partial[tid + stride];
+        }
+        __syncthreads();
+    }
+    
+    // Warp-level reduction
+    if (tid < 32) {
+        float val = s_partial[tid];
+        if (num_threads > 32) val += s_partial[tid + 32];
+        
+        unsigned mask = __activemask();
+        for (int offset = 16; offset > 0; offset /= 2) {
+            val += __shfl_down_sync(mask, val, offset);
+        }
+        
+        if (tid == 0) {
+            const int weight_idx = ((out_c * in_channels + in_c) * KERNEL_SIZE + ky) * KERNEL_SIZE + kx;
+            grad_weights[weight_idx] = val;
+        }
+    }
+}
+
+// Backward convolution for gradient w.r.t. biases
+template <int BLOCK_SIZE>
+__global__ void simple_conv_backward_biases_kernel(
+    float* __restrict__ grad_biases,
+    const float* __restrict__ grad_output,
+    const int width,
+    const int height,
+    const int out_channels)
+{
+    __shared__ float s_sum[BLOCK_SIZE];
+    
+    const int out_c = blockIdx.x;
+    const int tid = threadIdx.x;
+    const int num_pixels = width * height;
+    
+    if (out_c >= out_channels)
+        return;
+    
+    float sum = 0.0f;
+    
+    // Each thread accumulates a subset of pixels
+    for (int i = tid; i < num_pixels; i += blockDim.x) {
+        sum += grad_output[out_c * num_pixels + i];
+    }
+    
+    s_sum[tid] = sum;
+    __syncthreads();
+    
+    // Tree reduction in shared memory
+    for (int stride = blockDim.x / 2; stride > 32; stride >>= 1) {
+        if (tid < stride) {
+            s_sum[tid] += s_sum[tid + stride];
+        }
+        __syncthreads();
+    }
+    
+    // Warp-level reduction
+    if (tid < 32) {
+        float val = s_sum[tid];
+        if (blockDim.x > 32) val += s_sum[tid + 32];
+        
+        unsigned mask = __activemask();
+        for (int offset = 16; offset > 0; offset /= 2) {
+            val += __shfl_down_sync(mask, val, offset);
+        }
+        
+        if (tid == 0) {
+            grad_biases[out_c] = val;
+        }
+    }
+}
+
 template <int kernel_width, bool flip_kernel>
 __device__ __forceinline__
 float im2col_map_coords(const float* __restrict__ src, const int c, const int y_in, const int x, const int row, const int col) {
@@ -179,6 +434,8 @@ void Conv2DGPU::setParams(float *params)
     m_weights = params;
     m_biases = params + m_kernel_size * m_kernel_size * prev_z * m_filters;
 }
+
+#if USE_IM2COL
 void Conv2DGPU::forward() {
     m_prev->forward();
 
@@ -250,3 +507,102 @@ void Conv2DGPU::backward(const float learning_rate, const float * __restrict__ _
     CHECK(cudaGetLastError());
     m_prev->backward(learning_rate, grad_input);
 }
+#else
+void Conv2DGPU::forward() {
+    m_prev->forward();
+
+    const auto [in_w, in_h, in_c] = m_prev->dimension();
+    const auto [out_w, out_h, out_c] = dimension();
+    
+    constexpr int TILE_SIZE = 16;
+    constexpr int CHANNELS_PER_BLOCK = 4;
+    
+    dim3 blockDim(TILE_SIZE, TILE_SIZE);
+    dim3 gridDim(
+        (in_w + TILE_SIZE - 1) / TILE_SIZE,
+        (in_h + TILE_SIZE - 1) / TILE_SIZE,
+        out_c
+    );
+    
+    if (m_kernel_size == 3) {
+        simple_conv_unified_kernel<3, TILE_SIZE, CHANNELS_PER_BLOCK, false><<<gridDim, blockDim>>>(
+            m_output, m_prev->output(), m_weights, m_biases, in_w, in_h, in_c, out_c
+        );
+    } else if (m_kernel_size == 5) {
+        simple_conv_unified_kernel<5, TILE_SIZE, CHANNELS_PER_BLOCK, false><<<gridDim, blockDim>>>(
+            m_output, m_prev->output(), m_weights, m_biases, in_w, in_h, in_c, out_c
+        );
+    }
+    
+    CHECK(cudaGetLastError());
+}
+
+void Conv2DGPU::backward(const float learning_rate, const float * __restrict__ _grad_output)
+{
+    const auto [in_w, in_h, in_c] = m_prev->dimension();
+    const auto [out_w, out_h, out_c] = dimension();
+    
+    // Initialize gradient buffers to zero
+    cudaMemset(grad_input, 0, in_w * in_h * in_c * sizeof(float));
+    cudaMemset(grad_weights, 0, out_c * in_c * m_kernel_size * m_kernel_size * sizeof(float));
+    cudaMemset(grad_biases, 0, out_c * sizeof(float));
+    
+    constexpr int TILE_SIZE = 16;
+    constexpr int CHANNELS_PER_BLOCK = 4;
+    
+    // 1. Gradient w.r.t. input using unified kernel in backward mode
+    {
+        dim3 blockDim(TILE_SIZE, TILE_SIZE);
+        dim3 gridDim(
+            (in_w + TILE_SIZE - 1) / TILE_SIZE,
+            (in_h + TILE_SIZE - 1) / TILE_SIZE,
+            in_c
+        );
+        
+        if (m_kernel_size == 3) {
+            simple_conv_unified_kernel<3, TILE_SIZE, CHANNELS_PER_BLOCK, true><<<gridDim, blockDim>>>(
+                grad_input, _grad_output, m_weights, nullptr, in_w, in_h, out_c, in_c
+            );
+        } else if (m_kernel_size == 5) {
+            simple_conv_unified_kernel<5, TILE_SIZE, CHANNELS_PER_BLOCK, true><<<gridDim, blockDim>>>(
+                grad_input, _grad_output, m_weights, nullptr, in_w, in_h, out_c, in_c
+            );
+        }
+    }
+    
+    // 2. Gradient w.r.t. weights using parallel multiplication + tree reduction
+    {
+        dim3 blockDim(TILE_SIZE, TILE_SIZE);
+        dim3 gridDim(m_kernel_size, m_kernel_size, out_c * in_c);
+        
+        if (m_kernel_size == 3) {
+            simple_conv_backward_weights_kernel<3, TILE_SIZE><<<gridDim, blockDim>>>(
+                grad_weights, _grad_output, m_prev->output(), in_w, in_h, in_c, out_c
+            );
+        } else if (m_kernel_size == 5) {
+            simple_conv_backward_weights_kernel<5, TILE_SIZE><<<gridDim, blockDim>>>(
+                grad_weights, _grad_output, m_prev->output(), in_w, in_h, in_c, out_c
+            );
+        }
+    }
+    
+    // 3. Gradient w.r.t. biases using tree reduction
+    {
+        constexpr int BLOCK_SIZE = 256;
+        dim3 blockDim(BLOCK_SIZE);
+        dim3 gridDim(out_c);
+        
+        simple_conv_backward_biases_kernel<BLOCK_SIZE><<<gridDim, blockDim>>>(
+            grad_biases, _grad_output, in_w, in_h, out_c
+        );
+    }
+    
+    CHECK(cudaDeviceSynchronize());
+    clipGradientsGPU(grad_weights, 5.0f, out_c * in_c * m_kernel_size * m_kernel_size);
+    clipGradientsGPU(grad_biases, 5.0f, m_filters);
+    updateWeightsGPU(m_weights, grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
+    updateWeightsGPU(m_biases, grad_biases, learning_rate, m_filters);
+    CHECK(cudaGetLastError());
+    m_prev->backward(learning_rate, grad_input);
+}
+#endif
