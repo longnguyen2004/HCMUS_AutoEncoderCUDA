@@ -10,11 +10,11 @@
 
 The project includes 3 different Conv2D GPU implementations in `src/layer/conv/gpu/conv2d.cu`:
 
-1. **Naive** (`USE_NAIVE=1`): Simple direct convolution kernel
-2. **Im2Col** (`USE_IM2COL=1`): Matrix multiplication using im2col transformation
-3. **Tiled** (default): Optimized tiled convolution with shared memory
+1. **Naive** (`IMPLEMENTATION=1`): Simple direct convolution kernel
+2. **Tiled** (`IMPLEMENTATION=2`): Optimized tiled convolution with shared memory
+3. **Im2Col** (`IMPLEMENTATION=3`): Matrix multiplication using im2col transformation
 
-Switch between implementations by changing the flags at the top of `conv2d.cu`.
+Switch between implementations by changing the preprocessor define at the top of `conv2d.cu`.
 
 ## Compilation command
 
