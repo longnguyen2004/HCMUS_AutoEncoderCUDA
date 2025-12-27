@@ -6,6 +6,16 @@
 - A recent compiler (latest version of MSVC, GCC or Clang)
 - [CMake](https://cmake.org/download/)
 
+## Conv2D Implementation Options
+
+The project includes 3 different Conv2D GPU implementations in `src/layer/conv/gpu/conv2d.cu`:
+
+1. **Naive** (`USE_NAIVE=1`): Simple direct convolution kernel
+2. **Im2Col** (`USE_IM2COL=1`): Matrix multiplication using im2col transformation
+3. **Tiled** (default): Optimized tiled convolution with shared memory
+
+Switch between implementations by changing the flags at the top of `conv2d.cu`.
+
 ## Compilation command
 
 - In the project root, run `cmake -B build -DCMAKE_BUILD_TYPE=Release`
