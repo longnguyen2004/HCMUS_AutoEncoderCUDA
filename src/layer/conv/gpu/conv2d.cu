@@ -5,8 +5,12 @@
 #include <constants.h>
 #include <helper/gpu_helper.h>
 
-#define USE_NAIVE 1
-#define USE_IM2COL 0
+// Implementation:
+// 1. Naive: no shared memory
+// 2. Optimized naive: shared memory + tree reduction for grad weights
+// 3. im2col
+
+#define IMPLEMENTATION 3
 
 __global__ void naive_conv_forward_kernel(
     float* __restrict__ output,
@@ -557,7 +561,7 @@ void Conv2DGPU::setParams(float *params)
     m_biases = params + m_kernel_size * m_kernel_size * prev_z * m_filters;
 }
 
-#if USE_NAIVE
+#if IMPLEMENTATION == 1
 void Conv2DGPU::forward() {
     m_prev->forward();
     const auto [in_w, in_h, in_c] = m_prev->dimension();
@@ -603,7 +607,7 @@ void Conv2DGPU::backward(const float learning_rate, const float * __restrict__ _
     CHECK(cudaGetLastError());
     m_prev->backward(learning_rate, grad_input);
 }
-#elif USE_IM2COL
+#elif IMPLEMENTATION == 3
 void Conv2DGPU::forward() {
     m_prev->forward();
 
