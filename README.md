@@ -1,60 +1,41 @@
-# Setting up the project
+# AutoEncoder CUDA
 
-## Dependencies
+A C++/CUDA implementation of a convolutional autoencoder for CIFAR-10.
 
-- **The NVIDIA CUDA SDK** (Target architecture: 75)
-- **A C++20 compliant compiler** (e.g., GCC 10+, Clang 10+, or MSVC 2019+)
-- **CMake 3.10+**
-- **mdspan** (Automatically handled by CMake via FetchContent)
+## 1. Hardware Requirements
+- **GPU**: NVIDIA CUDA-capable GPU (tested on P100, T4, 1660 Ti).
+- **Architecture**: Any modern SM architecture.
+- **Memory**: ~2GB VRAM recommended.
 
-## Conv2D Implementation Options
+## 2. Setup Instructions
+- **CUDA**: Version 11.0+
+- **Compiler**: C++20 compliant (GCC 10+, Clang 10+, or MSVC 2019+)
+- **Build System**: CMake 3.18+
+- **Libraries**: `nvToolsExt` (CUDA Toolkit), `mdspan` (Auto-downloaded)
+- **Dataset**: [CIFAR-10 binary](https://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz) extracted to a folder.
 
-The project includes 3 different Conv2D GPU implementations in `src/layer/conv/gpu/conv2d.cu`:
-
-1. **Naive** (`IMPLEMENTATION=1`): Simple direct convolution kernel without shared memory.
-2. **Optimized Naive** (`IMPLEMENTATION=2`): Tiled convolution with shared memory and tree reduction for gradient weights.
-3. **Im2Col** (`IMPLEMENTATION=3`): Matrix multiplication using the im2col transformation (Default).
-
-Switch between implementations by changing the `#define IMPLEMENTATION` at the top of `src/layer/conv/gpu/conv2d.cu`.
-
-## Compilation command
-
-1. In the project root, run:
-   ```bash
-   cmake -B build -DCMAKE_BUILD_TYPE=Release
-   ```
-2. Build the project:
-   ```bash
-   cmake --build build -j
-   ```
-   *Note: On Windows with Visual Studio, use `cmake --build build --config Release`.*
-
-## Executing the code
-
-Assuming `path/to/cifar-10-batches-bin` contains the CIFAR-10 dataset (`data_batch_n.bin` and `test_batch.bin`).
-
-### Training AutoEncoder
-
+## 3. Compilation Commands
 ```bash
-./build/AUTOENCODER_EXEC [path/to/dataset]      # GPU version
-./build/AUTOENCODER_EXEC_CPU [path/to/dataset]  # CPU version
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=75
+cmake --build build -j
+```
+*Note: Set `CMAKE_CUDA_ARCHITECTURES` to match your GPU (e.g., 60, 75, 86).*
+
+## 4. Execution Instructions
+### Training
+```bash
+./build/AUTOENCODER_EXEC path/to/cifar-10-batches-bin
+```
+### Evaluation
+```bash
+./build/AUTOENCODER_EVAL path/to/cifar-10-batches-bin
+```
+### Feature Extraction
+```bash
+./build/EXTRACT_FEATURES path/to/cifar-10-batches-bin
 ```
 
-Weights will be output to `params_epoch_n.bin` in the current working directory after each epoch.
-
-### Evaluating AutoEncoder
-
-```bash
-./build/AUTOENCODER_EVAL [path/to/dataset]      # GPU version
-./build/AUTOENCODER_EVAL_CPU [path/to/dataset]  # CPU version
-```
-
-A folder `test_outputs` will be created, containing original and reconstructed versions of the first 20 images in the dataset.
-
-### Extract Features for SVM (GPU only)
-
-```bash
-./build/EXTRACT_FEATURES [path/to/dataset]
-```
-
-Four CSV files will be created: `train_features.csv`, `train_labels.csv`, `test_features.csv`, and `test_labels.csv`, containing training and testing data for SVM.
+## 5. Expected Outputs
+- **Training**: Periodic loss logs in console and `params_epoch_n.bin` weight files.
+- **Evaluation**: A `test_outputs` folder containing original vs. reconstructed PNG images.
+- **Feature Extraction**: Four CSV files (`train_features.csv`, etc.) for SVM training.
