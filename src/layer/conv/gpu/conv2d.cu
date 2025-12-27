@@ -5,7 +5,129 @@
 #include <constants.h>
 #include <helper/gpu_helper.h>
 
-#define USE_IM2COL 1
+#define USE_NAIVE 1
+#define USE_IM2COL 0
+
+__global__ void naive_conv_forward_kernel(
+    float* __restrict__ output,
+    const float* __restrict__ input,
+    const float* __restrict__ weights,
+    const float* __restrict__ biases,
+    const int width,
+    const int height,
+    const int in_channels,
+    const int out_channels,
+    const int kernel_size)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    const int f = blockIdx.z;
+
+    if (x < width && y < height && f < out_channels) {
+        float val = biases[f];
+        const int pad = kernel_size / 2;
+        for (int c = 0; c < in_channels; ++c) {
+            for (int ky = 0; ky < kernel_size; ++ky) {
+                for (int kx = 0; kx < kernel_size; ++kx) {
+                    const int in_x = x + kx - pad;
+                    const int in_y = y + ky - pad;
+                    if (in_x >= 0 && in_x < width && in_y >= 0 && in_y < height) {
+                        val += input[c * (height * width) + in_y * width + in_x] *
+                               weights[((f * in_channels + c) * kernel_size + ky) * kernel_size + kx];
+                    }
+                }
+            }
+        }
+        output[f * (height * width) + y * width + x] = val;
+    }
+}
+
+__global__ void naive_conv_backward_input_kernel(
+    float* __restrict__ grad_input,
+    const float* __restrict__ grad_output,
+    const float* __restrict__ weights,
+    const int width,
+    const int height,
+    const int in_channels,
+    const int out_channels,
+    const int kernel_size)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    const int c = blockIdx.z;
+
+    if (x < width && y < height && c < in_channels) {
+        float val = 0.0f;
+        const int pad = kernel_size / 2;
+        for (int f = 0; f < out_channels; ++f) {
+            for (int ky = 0; ky < kernel_size; ++ky) {
+                for (int kx = 0; kx < kernel_size; ++kx) {
+                    const int out_x = x + kx - pad;
+                    const int out_y = y + ky - pad;
+                    if (out_x >= 0 && out_x < width && out_y >= 0 && out_y < height) {
+                        const int ky_flipped = kernel_size - 1 - ky;
+                        const int kx_flipped = kernel_size - 1 - kx;
+                        val += grad_output[f * (height * width) + out_y * width + out_x] *
+                               weights[((f * in_channels + c) * kernel_size + ky_flipped) * kernel_size + kx_flipped];
+                    }
+                }
+            }
+        }
+        grad_input[c * (height * width) + y * width + x] = val;
+    }
+}
+
+__global__ void naive_conv_backward_weights_kernel(
+    float* __restrict__ grad_weights,
+    const float* __restrict__ grad_output,
+    const float* __restrict__ input,
+    const int width,
+    const int height,
+    const int in_channels,
+    const int out_channels,
+    const int kernel_size)
+{
+    const int kx = blockIdx.x;
+    const int ky = blockIdx.y;
+    const int fc = blockIdx.z;
+    
+    const int f = fc / in_channels;
+    const int c = fc % in_channels;
+
+    if (f < out_channels && c < in_channels && ky < kernel_size && kx < kernel_size) {
+        float val = 0.0f;
+        const int pad = kernel_size / 2;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                const int in_x = x + kx - pad;
+                const int in_y = y + ky - pad;
+                if (in_x >= 0 && in_x < width && in_y >= 0 && in_y < height) {
+                    val += grad_output[f * (height * width) + y * width + x] *
+                           input[c * (height * width) + in_y * width + in_x];
+                }
+            }
+        }
+        grad_weights[((f * in_channels + c) * kernel_size + ky) * kernel_size + kx] = val;
+    }
+}
+
+__global__ void naive_conv_backward_biases_kernel(
+    float* __restrict__ grad_biases,
+    const float* __restrict__ grad_output,
+    const int width,
+    const int height,
+    const int out_channels)
+{
+    const int f = blockIdx.x;
+    if (f < out_channels) {
+        float val = 0.0f;
+        const int num_pixels = width * height;
+        for (int i = 0; i < num_pixels; ++i) {
+            val += grad_output[f * num_pixels + i];
+        }
+        grad_biases[f] = val;
+    }
+}
 
 template <int KERNEL_SIZE, int TILE_SIZE, int CHANNELS_PER_BLOCK, bool BACKWARD_MODE>
 __global__ void simple_conv_unified_kernel(
@@ -435,7 +557,53 @@ void Conv2DGPU::setParams(float *params)
     m_biases = params + m_kernel_size * m_kernel_size * prev_z * m_filters;
 }
 
-#if USE_IM2COL
+#if USE_NAIVE
+void Conv2DGPU::forward() {
+    m_prev->forward();
+    const auto [in_w, in_h, in_c] = m_prev->dimension();
+    const auto [out_w, out_h, out_c] = dimension();
+    
+    dim3 blockDim(TILE_WIDTH, TILE_WIDTH);
+    dim3 gridDim((out_w + TILE_WIDTH - 1) / TILE_WIDTH, (out_h + TILE_WIDTH - 1) / TILE_WIDTH, out_c);
+    
+    naive_conv_forward_kernel<<<gridDim, blockDim>>>(
+        m_output, m_prev->output(), m_weights, m_biases, in_w, in_h, in_c, out_c, m_kernel_size
+    );
+    CHECK(cudaGetLastError());
+}
+
+void Conv2DGPU::backward(const float learning_rate, const float * __restrict__ _grad_output) {
+    const auto [in_w, in_h, in_c] = m_prev->dimension();
+    const auto [out_w, out_h, out_c] = dimension();
+    
+    cudaMemset(grad_input, 0, in_w * in_h * in_c * sizeof(float));
+    cudaMemset(grad_weights, 0, out_c * in_c * m_kernel_size * m_kernel_size * sizeof(float));
+    cudaMemset(grad_biases, 0, out_c * sizeof(float));
+
+    dim3 blockDim2D(TILE_WIDTH, TILE_WIDTH);
+    dim3 gridDimInput((in_w + TILE_WIDTH - 1) / TILE_WIDTH, (in_h + TILE_WIDTH - 1) / TILE_WIDTH, in_c);
+    naive_conv_backward_input_kernel<<<gridDimInput, blockDim2D>>>(
+        grad_input, _grad_output, m_weights, in_w, in_h, in_c, out_c, m_kernel_size
+    );
+
+    dim3 gridDimWeights(m_kernel_size, m_kernel_size, out_c * in_c);
+    naive_conv_backward_weights_kernel<<<gridDimWeights, 1>>>(
+        grad_weights, _grad_output, m_prev->output(), in_w, in_h, in_c, out_c, m_kernel_size
+    );
+
+    naive_conv_backward_biases_kernel<<<out_c, 1>>>(
+        grad_biases, _grad_output, in_w, in_h, out_c
+    );
+
+    CHECK(cudaDeviceSynchronize());
+    clipGradientsGPU(grad_weights, 5.0f, out_c * in_c * m_kernel_size * m_kernel_size);
+    clipGradientsGPU(grad_biases, 5.0f, out_c);
+    updateWeightsGPU(m_weights, grad_weights, learning_rate, out_c * in_c * m_kernel_size * m_kernel_size);
+    updateWeightsGPU(m_biases, grad_biases, learning_rate, out_c);
+    CHECK(cudaGetLastError());
+    m_prev->backward(learning_rate, grad_input);
+}
+#elif USE_IM2COL
 void Conv2DGPU::forward() {
     m_prev->forward();
 
